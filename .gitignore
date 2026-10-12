@@ -1,0 +1,6 @@
+.vs/
+out/
+
+external/include/glm/*
+
+notes/*
