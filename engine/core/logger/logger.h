@@ -3,15 +3,12 @@
 #include <engine_api.h>
 #include <spdlog/spdlog.h>
 
-namespace netscope
+class ENGINE_API Logger
 {
-	class ENGINE_API Logger
-	{
-	public:
-		static void Initialize();
-	private:
-	};
-}
+public:
+	static void Initialize();
+private:
+};
 
 #define LOG_TRACE(...) spdlog::trace(__VA_ARGS__)
 #define LOG_DEBUG(...) spdlog::debug(__VA_ARGS__)
