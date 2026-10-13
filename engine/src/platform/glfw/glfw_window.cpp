@@ -1,6 +1,6 @@
 #include "glfw_window.h"
 
-#include <core/logger/logger.h>
+#include <engine/core/logger/log.h>
 
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
@@ -17,13 +17,14 @@ namespace Engine
 	{
 		glfwSetErrorCallback(GLFW_Window::ErrorCallback);
 
-		if (!glfwInit())
+		int err = glfwInit();
+		if (!err)
 		{
-			throw WindowException("GLFWWindow::GLFWWindow => glfwInit failed");
+			throw WindowException(std::format("GLFWWindow::GLFWWindow => [{}] glfwInit failed", err));
 		}
 			
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, props.gl_version_major);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, props.gl_version_minor);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, props.openGL_version_major);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, props.openGL_version_minor);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 		glfwWindowHint(GLFW_RESIZABLE, (props.resizable) ? GLFW_TRUE : GLFW_FALSE);
 		glfwWindowHint(GLFW_DEPTH_BITS, props.depth_bits);
@@ -42,7 +43,7 @@ namespace Engine
 		{
 			glfwDestroyWindow(m_window);
 			glfwTerminate();
-			throw WindowException("GLFWWindow::GLFWWindow => failed to initialize OpenGL context");
+			throw WindowException(std::format("GLFWWindow::GLFWWindow => [{}] failed to initialize OpenGL context", version));
 		}
 
 		glfwSwapInterval((props.vsync) ? 1 : 0);

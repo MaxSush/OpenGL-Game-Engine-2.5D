@@ -1,10 +1,11 @@
 #pragma once
 
-#include <engine_api.h>
+#include <engine/engine_api.h>
 
 #include <string>
 #include <string_view>
 #include <stdexcept>
+#include <memory>
 
 namespace Engine
 {
@@ -22,17 +23,20 @@ namespace Engine
 		std::string title			= "OpenGL Engine";
 		bool resizable				= false;
 		bool vsync					= true;
-		int gl_version_major		= 3;
-		int gl_version_minor		= 3;
+		int openGL_version_major	= 3;
+		int openGL_version_minor	= 3;
 		int depth_bits				= 24;	// request depth buffer
 		int samples					= 0;	// 0 = MSAA off
 	};
 
+# pragma warning (push) 
+# pragma warning (disable: 4275)
 	class ENGINE_API WindowException : public std::runtime_error
 	{
 	public:
 		using std::runtime_error::runtime_error;
 	};
+# pragma warning (pop)
 
 	class ENGINE_API Window
 	{

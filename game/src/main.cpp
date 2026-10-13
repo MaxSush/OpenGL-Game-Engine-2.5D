@@ -1,9 +1,9 @@
-#include <core/logger/logger.h>
-#include <platform/platform_window.h>
+#include <engine/core/logger/log.h>
+#include <engine/platform/platform_window.h>
 
 int main()
 {
-	Logger::Initialize();
+	Engine::Log::Init();
 	LOG_INFO("Game Started");
 
 	auto wnd = Engine::Window::Create();
@@ -13,6 +13,8 @@ int main()
 		wnd->PollEvents();
 		wnd->SwapBuffers();
 	}
+
+	Engine::Log::Shutdown();
 
 	return 0;
 }
