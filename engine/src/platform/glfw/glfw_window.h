@@ -20,6 +20,7 @@ namespace Engine
 		Dimension GetFramebufferSize() const override;
 		void SetTitle(std::string_view title) override;
 		void SetVSync(bool enabled) override;
+		std::unique_ptr<InputBackend> CreateInputBackend() override;
 
 	private:
 		static void ErrorCallback(int error, const char* msg);

@@ -1,10 +1,13 @@
 #include "glfw_window.h"
 
-#include <engine/core/logger/log.h>
-
 #define GLAD_GL_IMPLEMENTATION
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+
+#include <engine/core/logger/log.h>
+#include <engine/platform/input_backend.h>
+#include "glfw_input_backend.h"
+
 
 namespace Engine
 {
@@ -99,6 +102,11 @@ namespace Engine
 	void GLFW_Window::SetVSync(bool enabled)
 	{
 		glfwSwapInterval((enabled) ? 1 : 0);
+	}
+
+	std::unique_ptr<InputBackend> GLFW_Window::CreateInputBackend()
+	{
+		return std::make_unique<GLFWInputBackend>(m_window);
 	}
 
 	void GLFW_Window::ErrorCallback(int error, const char* msg)

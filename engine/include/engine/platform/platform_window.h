@@ -9,6 +9,9 @@
 
 namespace Engine
 {
+	// Forward Declared
+	class InputBackend;
+
 	struct Dimension
 	{
 		int width = 0;
@@ -58,6 +61,8 @@ namespace Engine
 
 		virtual void SetTitle(std::string_view title) = 0;
 		virtual void SetVSync(bool enabled) = 0;
+
+		virtual std::unique_ptr<InputBackend> CreateInputBackend() = 0;
 
 	protected:
 		Window() = default;
