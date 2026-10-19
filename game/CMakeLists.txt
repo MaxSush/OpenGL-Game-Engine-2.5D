@@ -1,5 +1,6 @@
 add_executable(game 
     "src/main.cpp"
+    "src/PlatformerGame.cpp"
 )
 
 target_link_libraries(game 

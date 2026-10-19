@@ -4,3 +4,5 @@ out/
 external/include/glm/*
 
 notes/*
+logs/
+CMakeUserPresets.json

@@ -1,4 +1,5 @@
 #include "glfw_input_backend.h"
+#include "glfw_window.h"
 
 #include <GLFW/glfw3.h>
 
@@ -55,26 +56,16 @@ namespace Engine
 		}
 	}
 
-	GLFWInputBackend::GLFWInputBackend(GLFWwindow* window)
-		: m_window(window)
+	GLFWInputBackend::GLFWInputBackend(GLFW_Window* owner)
+		: m_owner(owner)
 	{
-		if (!m_window) return;
-
-		glfwSetWindowUserPointer(m_window, this);
-
-		glfwSetKeyCallback(m_window, &GLFWInputBackend::KeyCallback);
-		glfwSetMouseButtonCallback(m_window, &GLFWInputBackend::MouseButtonCallback);
-		glfwSetCursorPosCallback(m_window, &GLFWInputBackend::CursorPosCallback);
-		glfwSetScrollCallback(m_window, &GLFWInputBackend::ScrollCallback);
-		glfwSetWindowFocusCallback(m_window, &GLFWInputBackend::WindowFocusCallback);
-		glfwSetCursorEnterCallback(m_window, &GLFWInputBackend::CursorEnterCallback);
-		glfwSetCharCallback(m_window, &GLFWInputBackend::CharCallback);
+		if (!m_owner) return;
+		m_window = m_owner->GetNativeHandle();
+		m_owner->AttachInputBackend(this);
 	}
 
 	GLFWInputBackend::~GLFWInputBackend()
 	{
-		if (!m_window) return;
-
 		glfwSetKeyCallback(m_window, nullptr);
 		glfwSetMouseButtonCallback(m_window, nullptr);
 		glfwSetCursorPosCallback(m_window, nullptr);
@@ -84,6 +75,11 @@ namespace Engine
 		glfwSetCharCallback(m_window, nullptr);
 
 		glfwSetWindowUserPointer(m_window, nullptr);
+
+		if (m_owner)
+		{
+			m_owner->DetachInputBackend(this);
+		}
 	}
 
 	void GLFWInputBackend::SetEventQueue(InputEventQueue* queue)
@@ -117,15 +113,18 @@ namespace Engine
 		return m_cursor_mode;
 	}
 
-	void GLFWInputBackend::PumpEvents()
+	void GLFWInputBackend::OnWindowDestroyed()
 	{
-		glfwPollEvents();
+		m_owner = nullptr;
+		m_window = nullptr;
 	}
 
-	void GLFWInputBackend::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+	void GLFWInputBackend::OnKey(int key, int, int action, int mods)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
 		KeyEvent ke;
@@ -148,13 +147,15 @@ namespace Engine
 		}
 
 		event.payload = ke;
-		self->m_queue->Push(event);
+		m_queue->Push(event);
 	}
 
-	void GLFWInputBackend::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+	void GLFWInputBackend::OnMouseButton(int button, int action, int mods)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
 		MouseButtonEvent me;
@@ -169,67 +170,70 @@ namespace Engine
 			return;
 
 		event.payload = me;
-		self->m_queue->Push(event);
+		m_queue->Push(event);
 	}
 
-	void GLFWInputBackend::CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+	void GLFWInputBackend::OnCursorPos(double xpos, double ypos)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
 		event.type = InputEventType::MouseMove;
-		MouseMoveEvent me;
-		me.xpos = xpos;
-		me.ypos = ypos;
-		event.payload = me;
-		self->m_queue->Push(event);
+		event.payload = MouseMoveEvent{ xpos, ypos };
+		m_queue->Push(event);
+
 	}
 
-	void GLFWInputBackend::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+	void GLFWInputBackend::OnScroll(double xoffset, double yoffset)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
 		event.type = InputEventType::MouseScroll;
-		MouseScrollEvent se;
-		se.xoffset = xoffset;
-		se.yoffset = yoffset;
-		event.payload = se;
-		self->m_queue->Push(event);
+		event.payload = MouseScrollEvent{ xoffset, yoffset };
+		m_queue->Push(event);
 	}
 
-	void GLFWInputBackend::WindowFocusCallback(GLFWwindow* window, int focused)
+	void GLFWInputBackend::OnWindowFocus(int focused)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
-		event.type = (focused) ? InputEventType::WindowFocusGained : InputEventType::WindowFocusLost;
-		self->m_queue->Push(event);
+		event.type = focused ? InputEventType::WindowFocusGained : InputEventType::WindowFocusLost;
+		m_queue->Push(event);
 	}
 
-	void GLFWInputBackend::CursorEnterCallback(GLFWwindow* window, int entered)
+	void GLFWInputBackend::OnCursorEnter(int entered)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
-		event.type = (entered) ? InputEventType::CursorEnter : InputEventType::CursorLeave;
-		self->m_queue->Push(event);
+		event.type = entered ? InputEventType::CursorEnter : InputEventType::CursorLeave;
+		m_queue->Push(event);
 	}
 
-	void GLFWInputBackend::CharCallback(GLFWwindow* window, unsigned int codepoint)
+	void GLFWInputBackend::OnChar(unsigned int codepoint)
 	{
-		auto* self = static_cast<GLFWInputBackend*>(glfwGetWindowUserPointer(window));
-		if (!self || !self->m_queue) return;
+		if (!m_queue)
+		{
+			return;
+		}
 
 		InputEvent event;
 		event.type = InputEventType::TextInput;
-		TextInputEvent te;
-		te.codepoint = codepoint;
-		event.payload = te;
-		self->m_queue->Push(event);
+		event.payload = TextInputEvent{ codepoint };
+		m_queue->Push(event);
 	}
 }

@@ -46,10 +46,14 @@ namespace Engine
 		{
 			if (auto* e = event.AsMouseMove())
 			{
-				m_mouse_delta.x += static_cast<float>(e->xpos) - m_mouse_position.x;
-				m_mouse_delta.y += static_cast<float>(e->ypos) - m_mouse_position.y;
-				m_mouse_position.x = static_cast<float>(e->xpos);
-				m_mouse_position.y = static_cast<float>(e->ypos);
+				const InputVector2 position{ static_cast<float>(e->xpos), static_cast<float>(e->ypos) };
+				if (m_mouse_position_valid)
+				{
+					m_mouse_delta.x += static_cast<float>(e->xpos) - m_mouse_position.x;
+					m_mouse_delta.y += static_cast<float>(e->ypos) - m_mouse_position.y;
+				}
+				m_mouse_position = position;
+				m_mouse_position_valid = true;
 			}
 			break;
 		}
@@ -64,9 +68,11 @@ namespace Engine
 		}
 		case InputEventType::WindowFocusGained:
 			m_focused = true;
+			m_mouse_position_valid = false;
 			break;
 		case InputEventType::WindowFocusLost:
 			m_focused = false;
+			m_mouse_position_valid = false;
 			ReleaseAll();
 			break;
 		default:

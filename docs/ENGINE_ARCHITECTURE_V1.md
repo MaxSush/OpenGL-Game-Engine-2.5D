@@ -1,40 +1,49 @@
 # OpenGL Engine — Architecture Map & Game-First Roadmap
 
 **Status:** Living architecture baseline  
-**Version:** 1.1  
-**Last updated:** 2026-10-19  
-**Primary priority:** Make a real, playable game as early as possible, then grow the engine in response to actual game needs.
+**Version:** 1.2  
+**Last updated:** 2026-10-20  
+**Primary priority:** Make a real, playable 2D game as early as possible, then grow the engine in response to actual game needs.
 
-> This document describes the intended architecture and development plan. It does not claim that all listed systems exist in the current repository. Keep implementation status visible in issues or a separate progress checklist. Update this document when a meaningful architecture decision changes.
+> This document describes intended architecture and the development plan. It does not claim that every listed system exists. **Implementation status lives in [`STATUS.md`](STATUS.md).** Update this document only when an architecture decision changes.
+
+### Changes in 1.2
+
+- `Game` + `Engine::Run(game, config)` replaces `GameInstance`/`GameMode` as the M0/M1 gameplay entry point (implemented).
+- `GameInstance`, `World`, `GameMode` are now **deferred**; a plain `Scene` is preferred until persistent cross-scene state or multiple worlds are needed.
+- Actor/Component is marked **unproven**; the model is chosen after the prototype (see 4).
+- Shared library kept deliberately (future hot-reload), with an explicit list of the costs we accept (see 8).
+- M1 split into M1a (loop, time, renderer) and M1b (player, collision). Debug UI moved earlier.
+- Input subsystem is declared **feature-frozen** until the game needs more.
 
 ---
 
 ## 1. Product vision
 
-Build a C++-native, code-first engine for **2D games first, with focused 2.5D capabilities added when a real game needs them**. The experience should borrow useful Unreal Engine ideas—an engine-owned runtime, lifecycle hooks, a game instance, worlds, game modes, actors and components—without copying Unreal's scale, editor dependency, reflection system, or deep inheritance patterns.
+Build a C++-native, code-first engine for **2D games first, with focused 2.5D capabilities added when a real game needs them**. Borrow useful Unreal ideas (engine-owned runtime, lifecycle hooks, composition) without copying its scale, editor dependency, reflection system, or deep inheritance.
 
-The engine's main purpose is not to be an impressive framework on paper. Its purpose is to help us make games.
+The engine's purpose is to help us make games, not to be an impressive framework on paper.
 
 ### Product goals
 
-- Get to a playable 2D game early, while the engine is still small.
+- Reach a playable 2D game early, while the engine is still small.
 - Keep a tiny playable sample game working throughout development.
-- Let the engine own startup, the frame loop, timing, event processing, rendering orchestration, and shutdown.
-- Let game code define worlds and gameplay in C++, without a mandatory visual level editor.
-- Use composition as the default; keep Actor inheritance optional and shallow.
-- Keep GLFW/OpenGL implementation details out of game-facing headers.
-- Build the engine as a **shared library** (`engine.dll` on Windows) with a deliberate public API boundary.
-- Use Dear ImGui for runtime debugging and inspection—not as a required world-authoring tool.
-- Add systems when the current game or a near-term milestone needs them.
-- Keep each milestone buildable, testable, and playable where practical.
+- The engine owns startup, frame loop, timing, event processing, rendering orchestration and shutdown.
+- Game code defines gameplay in C++; no mandatory editor.
+- Prefer composition; keep any inheritance optional and shallow.
+- Keep GLFW/OpenGL out of game-facing headers.
+- Build the engine as a **shared library** (`engine.dll`) with a deliberate public API boundary.
+- Use Dear ImGui for runtime tuning and inspection, not as a world-authoring tool.
+- Add systems only when the current game or the next milestone needs them.
+- Keep each milestone buildable, testable and playable.
 
 ### Non-goals for the initial engine
 
 - A general-purpose 3D engine.
-- A full Unreal-like editor, visual scripting, or reflection/garbage-collection framework.
-- Networking, a plugin marketplace, or hot reload before a concrete need appears.
-- Building every planned subsystem before the first game can be played.
-- Premature abstractions that have no current user in the sample game.
+- An Unreal-like editor, visual scripting, or reflection/GC framework.
+- Networking, plugin marketplace, or hot-reload *implementation* before a concrete need (the boundary should merely not prevent it).
+- Building every planned subsystem before the first game is playable.
+- Abstractions without a current user in the sample game (for example an RHI with one backend).
 
 ---
 
@@ -42,462 +51,361 @@ The engine's main purpose is not to be an impressive framework on paper. Its pur
 
 **At every stage, prefer the smallest engine change that lets the game become more real.**
 
-We will not finish a large abstract framework and only then start making a game. Instead, we will develop the engine alongside a small reference game and use that game to reveal what the engine actually needs.
+We develop the engine alongside a small reference game and let that game reveal what the engine needs.
 
 ### The reference game
 
-Use a small side-scrolling platformer as the recurring test project. Working title: **Shadow Runner**.
+A small side-scrolling platformer. Working title: **Shadow Runner**.
 
-The first version needs only:
-- A window and a reliable engine-owned game loop.
+First version:
+- Window and an engine-owned game loop.
 - Keyboard input.
-- A simple player represented by a rectangle or placeholder sprite.
+- A player as a rectangle or placeholder sprite.
 - Horizontal movement and jumping.
 - A few platforms and basic collision.
-- A camera or view that can show the play area.
-- A restart/exit path and a clear way to build and run the game.
+- A camera that shows the play area.
+- A quit/restart path and a clear build-and-run process.
 
-Later, the same game can grow to include sprites, animation, enemies, pickups, sound, multiple levels, save data, parallax, lighting, and selected 3D objects.
-
-The game is a **vertical slice**: each new engine capability should be exercised by real gameplay instead of a disconnected technical demo.
+Later: sprites, animation, enemies, pickups, sound, multiple levels, save data, parallax, lighting, selected 3D objects.
 
 ### Rules for avoiding overengineering
 
-1. Do not build an advanced Actor/Component system before the prototype proves which lifecycle and ownership features it needs.
-2. Do introduce the intended extension points early enough that game code does not take ownership of the engine loop.
-3. Prefer a simple, explicit C++ API over reflection, macros, automatic discovery, or hidden magic.
-4. Do not add a generic asset database, prefab system, scene serializer, editor, or plugin framework until a real workflow justifies it.
-5. If a feature can be implemented cleanly in the game first and is not yet reusable, keep it in game code. Promote it into the engine after a second use case or a clear cross-cutting need appears.
-6. Keep the reference game working after every milestone; do not let architecture refactors strand it for weeks.
+1. Do not build an Actor/Component/World framework before the prototype shows which lifecycle and ownership features it needs.
+2. Do introduce extension points early enough that game code never owns the loop.
+3. Prefer a simple explicit C++ API over reflection, macros or hidden magic.
+4. No asset database, prefab system, scene serializer, editor or plugin framework until a real workflow needs one.
+5. If a feature can live in game code and is not reusable yet, keep it there. Promote it after a second use or a clear cross-cutting need.
+6. Keep the reference game working after every milestone.
+7. Freeze subsystems that are already "enough" (currently: input) rather than polishing them ahead of need.
 
 ---
 
 ## 3. Architecture map
 
-The engine owns execution. The game supplies configuration and gameplay behavior through stable extension points.
+The engine owns execution. The game supplies behavior through stable extension points.
 
 ```text
-                         GAME EXECUTABLE
-                  (Shadow Runner / user's game)
-                                |
-                                v
-                     Game entry / game factory
-                                |
-                                v
-+----------------------------------------------------------------+
-|                    ENGINE RUNTIME (DLL)                        |
-|                                                                |
-|  EngineRuntime                                                  |
-|  - startup / shutdown                                           |
-|  - frame loop and frame timing                                  |
-|  - event pump and input-frame orchestration                     |
-|  - update / render scheduling                                   |
-|  - orderly teardown                                            |
-|                                                                |
-|  GameInstance                                                   |
-|  - state that survives world changes                            |
-|  - game-wide configuration/services when needed                 |
-|                                                                |
-|  World + GameMode                                               |
-|  - current level/world                                          |
-|  - world rules and initial setup                                |
-|  - actor ownership and world lifecycle                          |
-|                                                                |
-|  Actors + Components                                            |
-|  - player, enemies, platforms, pickups, doors                   |
-|  - reusable capabilities and gameplay behavior                  |
-|                                                                |
-|  Engine services (introduced as needed)                         |
-|  - Window / Platform Events / Input                             |
-|  - 2D Renderer / Camera / Assets                                |
-|  - Collision / Physics / Animation / Audio                     |
-|  - Debug tools (optional development layer)                     |
-+----------------------------------------------------------------+
-                                |
-                                v
-                  Platform + graphics backends
-                   GLFW / OpenGL / OS facilities
+                    GAME EXECUTABLE
+              (Shadow Runner / user's game)
+                          |
+              class MyGame : Engine::Game
+              int main() { return Engine::Run(game, config); }
+                          |
+                          v
++----------------------------------------------------------+
+|                  ENGINE RUNTIME (DLL)                    |
+|                                                          |
+|  Engine::Run  -> log init/shutdown, exception reporting  |
+|  Application  -> owns window, input, clock, frame loop   |
+|    - poll events -> Input::BeginFrame                    |
+|    - OnUpdate(dt)  (once per rendered frame)             |
+|    - OnFixedUpdate(step)  (0..N per frame)               |
+|    - clear -> OnRender -> swap -> Input::EndFrame        |
+|                                                          |
+|  Services (added as needed)                              |
+|  - Window / Platform events        [implemented]         |
+|  - Input (actions, contexts)       [implemented, frozen] |
+|  - 2D Renderer / Camera / Textures [next]                |
+|  - Collision / Movement helpers    [game code first]     |
+|  - Debug UI (ImGui)                [soon]                |
+|  - Audio / Animation / Assets      [when needed]         |
++----------------------------------------------------------+
+                          |
+                          v
+            Platform + graphics backends
+             GLFW / OpenGL / OS facilities
 ```
 
-This is a logical architecture, not a requirement that each box become a separate DLL or CMake target. Initially, keep one `engine` DLL and one game executable. Split targets only when there is a real dependency, testing, or build benefit.
+This is a logical architecture, not a promise that each box becomes a separate target. Keep one `engine` target and one `game` target until there is a concrete dependency, testing or build reason to split.
 
 ### Dependency direction
 
 ```text
 Game code
-   -> Public gameplay framework
-      -> Public engine service interfaces
-         -> Private implementations
-            -> GLFW / OpenGL / OS / third-party libraries
+   -> Public engine API (Game, Application, Input, Renderer2D ...)
+      -> Private implementations (src/)
+         -> GLFW / OpenGL / OS / third-party libraries
 ```
 
-Game code should not call GLFW directly, manipulate OpenGL buffers, or own the runtime loop. Rendering and platform internals should be replaceable without rewriting gameplay.
+Game code must not call GLFW, touch OpenGL buffers, or own the runtime loop.
 
 ---
 
-## 4. Core concepts and intended responsibilities
+## 4. Core concepts
 
-### `EngineRuntime`
+### `Engine::Run` and `Application` (implemented)
 
-The runtime is the process-level orchestrator. It initializes services, owns the main loop, coordinates frame timing and system updates, and shuts down in a deterministic order. Game code configures the runtime through a small entry point; it does not replace the main loop.
+`Run` initialises logging, constructs `Application`, converts exceptions to a log entry and exit code, and shuts logging down last. `Application` owns the window, input system and clock and runs the loop. It destroys input before the window, and both before the logger. Nothing throws across the DLL boundary.
 
-### `GameInstance`
+### `Game` (implemented)
 
-One per running game instance. It owns game-wide state that must survive a world/level change, such as settings or a run/session manager if the game needs one. It should not become a global container for every service.
+An abstract class with overridable callbacks: `OnStart`, `OnUpdate`, `OnFixedUpdate`, `OnRender`, `OnResize`, `OnShutdown`. The game registers input actions in `OnStart`; `Application` finalizes the action map afterward. The game never owns the loop.
 
-### `World`
+Contract notes:
+- `OnUpdate` samples input intent once per rendered frame.
+- `OnFixedUpdate` advances simulation at a constant step and must not read raw per-frame "pressed" input directly; it consumes intent captured in `OnUpdate`.
+- `OnResize` is delivered after `OnStart` and never with a zero size.
 
-Represents the active level/simulation context. It owns its actors and world-scoped state. The first version can create worlds entirely in C++ through level-builder functions. Serialization and editor-authored scenes are not prerequisites.
+### `Scene` (planned, M2)
 
-### `GameMode`
+A simple container for the current level's entities and level-scoped state, built in C++. It replaces `World`/`GameMode` until a proven need arises. Level loading is a function that fills a scene.
 
-Defines the rules and initial setup for a world/session: spawning the player, selecting rules, setting up initial actors, and responding to game-specific lifecycle events. It should coordinate gameplay, not contain every player's, enemy's, and pickup's implementation.
+### Entity model (undecided, M2)
 
-### `Actor`
+Unreal's `Actor*` is safe because of UObject, garbage collection and reflection. We have deliberately excluded those, so **object lifetime is our real risk**. Decide after the prototype between:
 
-A world object with identity and a documented lifecycle. Examples: player, enemy, platform, pickup, door, checkpoint. Custom Actor subclasses are allowed when they make gameplay clearer, but should not be required for every object.
+1. Plain structs in game-owned containers, with stable IDs or handles.
+2. A small custom handle-based entity store.
+3. A small ECS library (for example EnTT).
 
-### `Component`
+Whichever is chosen must support safe spawn/destroy during update (deferred destruction) and must not expose raw pointers that can dangle.
 
-A reusable capability attached to an Actor, such as movement, health, sprite rendering, collision, or audio. Composition is preferred over long inheritance trees. Components need clear ownership, initialization order, and safe destruction semantics.
+### `GameInstance`, `GameMode` (deferred)
 
-### Engine services
-
-Introduce services in response to game needs. Likely services include:
-- Window and platform events.
-- Action-based input.
-- 2D rendering, camera and texture resources.
-- Collision and platformer movement; a physics backend only if needed.
-- Animation and audio.
-- Asset loading/caching.
-- Debug inspection and profiling.
-
-Do not create a service abstraction for every small class by default. Keep the public API focused.
+In Unreal these exist largely for networking, server authority and level travel. A single-player 2D game does not need them. Reintroduce `GameInstance` only if persistent cross-scene state becomes awkward to hold in `Game`.
 
 ---
 
-## 5. Planned game-facing experience
-
-The following examples show the *direction* of the API. They are sketches, not guaranteed current signatures.
-
-### Game entry
+## 5. Game-facing API (current direction)
 
 ```cpp
+class PlatformerGame final : public Engine::Game
+{
+public:
+    bool OnStart() override;                 // register actions, load level
+    void OnUpdate(float dt) override;        // sample input intent
+    void OnFixedUpdate(float step) override; // movement, collision
+    void OnRender() override;                // draw via Renderer2D
+    void OnShutdown() override;
+};
+
 int main()
 {
-    return Engine::Run<ShadowRunnerGame>();
+    Engine::AppConfig config;
+    config.window.title = "Shadow Runner";
+
+    PlatformerGame game;
+    return Engine::Run(game, config);
 }
 ```
 
-The engine creates the runtime and invokes the game entry/lifecycle. The actual factory, error reporting and return type will be decided when implementing the runtime.
+Input intent pattern for the player:
 
-### Game setup
-
-```cpp
-class ShadowRunnerGame final : public Engine::GameInstance
-{
-public:
-    void OnStart() override
-    {
-        // Select or create the initial world.
-        // Set game-wide configuration if needed.
-    }
-};
+```text
+OnUpdate:      read actions -> fill Intent{ move_x, jump_buffered }
+OnFixedUpdate: consume Intent -> integrate velocity -> resolve collisions
+OnRender:      draw using current positions (interpolate only if needed)
 ```
-
-### Code-authored world
-
-```cpp
-class RuinedCityMode final : public Engine::GameMode
-{
-public:
-    void StartPlay() override
-    {
-        World().SpawnActor<PlayerCharacter>();
-        World().SpawnActor<PatrolEnemy>();
-        World().SpawnActor<HealthPickup>();
-    }
-};
-```
-
-### Gameplay object
-
-```cpp
-class PlayerCharacter final : public Engine::Actor
-{
-public:
-    void BeginPlay() override;
-    void Tick(float deltaTime) override;
-};
-```
-
-### Composition
-
-A player may combine Transform, Movement, Sprite/Animation, Collision, and Health components. An enemy can reuse Health, Sprite, and Collision while using different AI/movement behavior.
-
-The first implementation should use ordinary C++ and explicit ownership. Do not introduce Unreal-style garbage collection or reflection unless later requirements demonstrate a compelling need.
 
 ---
 
 ## 6. Game-first development roadmap
 
-The order is intentionally different from a framework-first plan. **We will create something playable before completing the full engine framework.**
+### Milestone 0 — Reliable build, entry point, loop (largely done)
 
-### Milestone 0 — Reliable build and a clear entry point
+- Clean CMake configure/build for engine DLL and game executable.
+- Window, input, logging.
+- `Game` interface, `Application`, `Engine::Run`, frame timing, fixed-step accumulator.
+- Minimize and resize handling, clean shutdown order.
 
-**Build:**
-- Clean CMake configure/build for the current engine DLL and game executable.
-- Stable public/private include boundaries.
-- A minimal game entry point.
-- Engine startup and shutdown with logging/errors.
-- A reliable window and engine-owned loop.
+**Result:** pressing Run opens a window, runs through the engine runtime, quits on Esc.  
+**Exit criteria:** clean Debug build, repeatable launch/shutdown, no stuck input.
 
-**Game result:** pressing Run opens a window, runs through the engine runtime, and exits cleanly.
+### Milestone 1a — First pixels
 
-**Do not build yet:** advanced actors, physics engine, asset database, animation system, editor.
+- glm dependency (as a submodule).
+- Minimal `Renderer2D`: orthographic camera, batched colored quads, embedded shaders. Direct OpenGL calls; no RHI.
+- Move `glViewport`/clear out of `Application` into the renderer.
 
-**Exit criteria:** clean Debug build and a repeatable launch/shutdown path.
+**Result:** colored rectangles on screen, responding to resize.
 
-### Milestone 1 — First playable prototype as early as possible
+### Milestone 1b — First playable prototype
 
-**Build only what the game needs:**
-- Keyboard/action input.
-- Frame delta and basic timing.
-- A simple 2D draw path for colored rectangles or one placeholder texture.
-- A minimal camera/view if necessary.
-- A simple game-owned prototype update path inside the engine's extension points.
-- Basic movement and platform collision; use the simplest correct approach for the first prototype.
+- Player controller and platform collision in **game code** (AABB vs rectangles).
+- Fixed-step movement, input-intent sampling, jump buffering and coyote time as needed.
+- ImGui tuning panel (gravity, jump speed, friction) so movement can be tuned live.
 
-**Game result:** a controllable character moves and jumps across platforms. The game loop is owned by the engine, not by `main.cpp` in the game project.
+**Result:** a controllable character runs and jumps across platforms. **This is the milestone that matters.**  
+**Exit criteria:** someone can launch the game and play the tiny level; movement is framerate independent.
 
-**Important:** do not block this milestone on a perfect Actor/Component design. The prototype should use the smallest gameplay API that respects the runtime boundary. Then use it to inform the framework.
+### Milestone 2 — Minimum framework the prototype needs
 
-**Exit criteria:** a person can launch the game and play the tiny level; input, timing, and basic collision behave consistently.
+- Choose the entity model (see 4) based on actual pain from M1b.
+- `Scene`, deferred spawn/destroy, a simple C++ level builder.
+- Move proven-reusable game code (for example AABB collision) into the engine.
+- Unit tests for lifecycle and core logic.
 
-### Milestone 2 — Add the minimum gameplay framework that the prototype needs
+**Exit criteria:** player, platforms and one enemy live in a scene; lifetime tests pass; the prototype still plays.
 
-**Build:**
-- `GameInstance`, `World`, and `GameMode`.
-- `Actor` identity and a clear lifecycle (`BeginPlay`, `Tick` or equivalent, `EndPlay`).
-- Component ownership and lifecycle.
-- Safe spawn/destroy behavior when requested during an update.
-- A simple C++ level builder.
+### Milestone 3 — Small complete 2D game
 
-**Game result:** the player, platforms, and a simple enemy are represented as world-owned actors. Reusable behavior moves into components where that actually reduces duplication.
-
-**Exit criteria:** a world can start, update, and shut down; actor/component lifetime tests pass; the prototype still plays.
-
-### Milestone 3 — Make a small complete 2D game
-
-Grow the reference game into a short but complete experience:
-- Sprite and texture loading.
+- Textures/sprites (stb_image) and an asset-path strategy.
 - Camera follow and draw order.
-- Basic 2D collision/platformer movement.
-- One enemy type, one pickup, one hazard or checkpoint.
-- Simple animation and audio as required.
-- Restart and level transition.
-- A small amount of game UI if needed.
-- A straightforward way to define additional levels in C++.
+- One enemy, one pickup, one hazard or checkpoint.
+- Animation and audio as required.
+- Restart, level transition, minimal UI.
 
-**Game result:** a tiny but complete game with a start, challenge, success/failure state, and restart path.
+**Exit criteria:** someone other than the author can run and finish the game from a clean build.
 
-**Exit criteria:** someone other than the author can run and finish the game from a clean build. The game is fun enough to expose workflow friction.
+### Milestone 4 — Workflow improvements driven by friction
 
-### Milestone 4 — Improve developer workflow based on actual friction
-
-Add only tools that solve observed problems:
-- ImGui actor/component inspector.
-- Collision-shape and transform overlays.
+- Inspector and collision/transform overlays.
 - Frame-time and renderer statistics.
-- Input-action diagnostics.
-- Useful logs and error messages.
-- Asset path/configuration improvements.
-- Automated tests for lifecycle and core logic.
+- Input diagnostics.
+- CI build (Debug + Release) and expanded tests.
 
-**Game result:** gameplay is easier to debug and iterate on; debug UI is optional and not needed to author a level.
+### Milestone 5 — Production basics
 
-**Exit criteria:** common bugs can be diagnosed without inserting temporary print statements everywhere.
+- Debug and Release configurations, packaging of exe + `engine.dll` + third-party DLLs + assets.
+- Missing-resource handling and a clean-checkout build/run guide.
 
-### Milestone 5 — Production basics and standalone distribution
+### Milestone 6 — Focused 2.5D features (only if a game needs them)
 
-**Build:**
-- Predictable Debug and Release configurations.
-- Packaging of the game executable, `engine.dll`, required third-party DLLs and assets.
-- Error handling for missing resources.
-- A documented game template or starter project if the workflow is stable.
-- A clean-checkout build/run guide.
+Depth/layer policy, parallax, perspective camera, selected 3D props, lighting.
 
-**Game result:** the game can be copied to another supported Windows machine/environment and launched with all required files.
+### Milestone 7 — Grow by demand
 
-**Exit criteria:** clean package works without relying on developer-only paths or build-directory accidents.
-
-### Milestone 6 — Focused 2.5D features, driven by a real game
-
-Only when a game needs them, add:
-- Explicit depth and layer/order policies.
-- Parallax and multi-plane backgrounds.
-- Orthographic camera improvements and perspective support if justified.
-- Selected 3D props or meshes.
-- Appropriate lighting and shadows.
-- Selected 3D collision/physics features if required.
-
-**Game result:** a small scene demonstrates the intended 2.5D look while the same runtime and gameplay framework remain intact.
-
-**Exit criteria:** a representative 2.5D scene works without redesigning the core runtime or world ownership model.
-
-### Milestone 7 — Grow by game demand, not by checklist
-
-Possible later features:
-- Save/load.
-- Data-driven actor templates or prefab-like definitions.
-- Tilemap tooling or code-assisted tilemaps.
-- More animation features.
-- More advanced physics.
-- Controller support and configurable bindings.
-- Better profiling and asset diagnostics.
-- Additional platforms only when explicitly targeted.
-
-Every feature needs a real use case, a small design, tests where practical, and a game/demo that exercises it.
+Save/load, data-driven templates, tilemap tooling, controller support, remappable bindings, hot reload (if still wanted), more physics.
 
 ---
 
-## 7. Feature policy: build now, build soon, defer
+## 7. Feature policy
 
 | Priority | Features | Why |
 |---|---|---|
-| **Now** | Build reliability, engine-owned loop, window, input, basic timing, simple 2D draw path | Required to make the first playable prototype |
-| **Soon** | Minimal World/Actor lifecycle, collision, player movement, camera, basic textures | Required to make the prototype into a real small game |
-| **When the game needs it** | Components beyond immediate needs, animation, audio, level transitions, ImGui inspection, resource caching | Add when they improve the next playable milestone |
-| **Later** | 2.5D lighting, selected 3D props, perspective, advanced physics, save/load, serialization | Avoid delaying the first game |
-| **Not planned by default** | Full visual editor, visual scripting, general-purpose 3D engine, reflection/GC framework, plugin ecosystem | Outside the focused product scope unless a strong need emerges |
-
-This table is a prioritization guide, not a promise that a feature will never be implemented.
+| **Done** | Window, input, logging, `Game`/`Application` loop, fixed-step timing | Foundation exists |
+| **Now** | Renderer2D with ortho camera, glm dependency | Nothing is drawn yet |
+| **Soon** | Player and collision in game code, ImGui tuning panel, input tests | Makes the prototype playable and tunable |
+| **When the game needs it** | Entity model and Scene, textures, animation, audio, level transitions, resource caching | Add when they improve the next playable milestone |
+| **Later** | 2.5D lighting, 3D props, perspective, advanced physics, save/load, serialization, hot reload | Avoid delaying the first game |
+| **Not planned** | Full editor, visual scripting, reflection/GC, plugin ecosystem, RHI abstraction | Outside the scope unless a strong need emerges |
 
 ---
 
 ## 8. Shared-library and CMake policy
 
-The accepted deployment model is a shared engine library (`SHARED`; `engine.dll` on Windows) plus a game executable.
+**Decision:** keep `engine` as a `SHARED` library plus a game executable. The primary reason is keeping a future hot-reload path open.
 
-Conceptual build graph:
+### Costs we are consciously accepting
 
-```text
-game (executable)
-   └── links Engine::Engine
+- Export annotations on every public class/function (`ENGINE_API`), and discipline about STL/third-party types in public headers.
+- Static spdlog gets linked into both exe and DLL, which works only while they share the same CRT. A hot-reloaded game DLL would add a third copy; solve that with an exported logging function if and when we reach it.
+- Unit tests cannot link private classes through the DLL. Test pure logic (`PhysicalInputState`, `InputActionResolver`, `InputEventQueue`) by compiling those `.cpp` files directly into a test executable.
+- Binary compatibility across compiler versions is not guaranteed; the API is source-level.
 
-engine (SHARED library / DLL)
-   ├── core and runtime
-   ├── platform/window
-   ├── input
-   ├── rendering and gameplay as they are implemented
-   └── private third-party implementation dependencies
-```
+### Revisit trigger
 
-Keep one engine target and one game target initially. Do not split every subsystem into a separate target. Add tests as needed.
+If hot reload is not attempted by the end of Milestone 3, reconsider switching the default to `STATIC` with `SHARED` as a CMake option (`ENGINE_API` gains a third branch that expands to nothing). Unreal itself is modular in the editor and monolithic static in shipping builds.
 
 ### DLL requirements
 
-- Define a single `ENGINE_API` macro that expands to `__declspec(dllexport)` while building the engine and `__declspec(dllimport)` for consumers on Windows; provide a sensible alternative for other supported compilers/platforms.
-- Apply the export macro consistently to public classes/functions that cross the DLL boundary.
-- Avoid exposing STL-heavy implementation details or third-party types in the public API without deliberate ABI consideration.
-- Keep implementation-only dependencies private when public headers do not require them.
-- Decide which runtime DLLs and assets must ship with the game; test packaging from a clean output directory.
-- Treat the public C++ API as a source-level interface initially. Binary compatibility across arbitrary compiler versions is not guaranteed unless we explicitly design and test for it.
+- Single `ENGINE_API` macro: export when building the engine, import for consumers, visibility attribute on GCC/Clang, empty otherwise.
+- `CXX_VISIBILITY_PRESET hidden` and `VISIBILITY_INLINES_HIDDEN ON` so Linux builds catch missing exports.
+- Small data-only structs read by the game (for example `InputFrame` accessors) either carry `ENGINE_API` or are inline in the header.
+- Keep implementation-only dependencies PRIVATE when public headers do not need them.
+- Nothing may throw across the DLL boundary; `Engine::Run` is the catch-all.
+- Hot-reload shape (not implemented): a game DLL would export one `extern "C"` factory returning `Game*`.
 
 ### Include and target boundaries
 
-Public game-facing headers belong under `engine/include/engine/`. Implementation belongs under `engine/src/` (or the repository's current equivalent after audit). Public headers should not require consumers to include engine-private paths.
+Public headers live under `engine/include/engine/`. Implementation lives under `engine/src/`. Use target-scoped CMake settings only. Third-party header-only includes are `SYSTEM` so warnings stay readable. Warnings are on (`/W4` or `-Wall -Wextra`) for the engine; the game target should follow.
 
-Use target-scoped CMake settings. Do not add global include paths or compile definitions merely to make one source file compile. Do not mass-move files until CMake, includes, exports, and builds can be changed together and verified.
+### Dependencies
 
----
-
-## 9. Runtime frame/lifecycle direction
-
-The exact sequence will be finalized when collision/physics and rendering are implemented, but the runtime will own orchestration. A provisional sequence:
-
-1. Initialize platform/window and required services.
-2. Create the game instance and initial world.
-3. Poll platform events and update input state.
-4. Calculate frame delta and apply configured frame/timing limits.
-5. Run game/world updates.
-6. Step physics at a defined cadence if a physics system exists.
-7. Synchronize transforms and collision state where needed.
-8. Render the world and optional debug overlays.
-9. Present the frame and finalize deferred world changes/resources at safe points.
-10. On shutdown, stop the world/game and release services in reverse dependency order.
-
-Lifecycle contracts must cover spawn/destroy during update, world changes, minimized windows, and shutdown. Fixed-step physics should be introduced if/when required, without forcing all gameplay updates to use a fixed timestep.
+glfw and spdlog are submodules. **glm must become a submodule too**; the current `.gitignore` excludes `external/include/glm/*`, which breaks fresh clones.
 
 ---
 
-## 10. 2D and 2.5D scope
+## 9. Runtime frame/lifecycle (implemented)
 
-### 2D baseline
+1. `Run`: init logging, construct `Application`.
+2. Create window and input; set the resize callback; set the viewport.
+3. `Game::OnStart`; finalize the input action map; deliver the first `OnResize`.
+4. Each frame: compute dt (clamped to `max_frame_time`), poll events, `Input::BeginFrame`.
+5. If minimized: drain input, sleep briefly, reset the clock, skip game and render.
+6. `OnUpdate(dt)`.
+7. Fixed-step loop: `OnFixedUpdate(step)` up to `max_fixed_steps_per_frame`; drop any remaining backlog.
+8. Clear, `OnRender`, swap, `Input::EndFrame`, update FPS.
+9. On exit: `OnShutdown`, destroy input then window, shut down logging.
 
-Prioritize the systems needed by a small complete game: window/runtime, input, 2D rendering, transforms, camera, textures, actors/world, collision/movement, simple animation/audio where required, level setup and packaging.
-
-### 2.5D extension
-
-Add depth, layers, parallax, selected 3D assets and lighting based on a representative game. Preserve the 2D path as a first-class use case. Do not build a universal 3D renderer or full 3D physics stack without a concrete target.
+Lifecycle contract points still to define when scenes arrive: spawn/destroy during update, scene transitions, shutdown order of scene objects. Interpolation alpha is added to `FrameTime` only if movement looks jittery.
 
 ---
 
-## 11. Testing and quality gates
+## 10. Input subsystem policy
+
+Input is implemented as: backend (GLFW) → event queue → physical state → action resolver → per-frame `InputFrame` snapshot → `Input` facade. It is **feature-frozen**. Allowed work: bug fixes and wiring that the game actually needs.
+
+Known limitations tracked in `STATUS.md`:
+- Input contexts are stubbed; the resolver ignores `active_contexts`. Wire them (bindings carry an optional context, invalid meaning "always active") only when a pause menu or ImGui capture needs them.
+- Action-level `pressed` can miss a same-frame tap; fix before jump buffering.
+- The first mouse move after start, focus regain or cursor-mode change produces a large delta; fix before mouse-look or drag.
+
+---
+
+## 11. 2D and 2.5D scope
+
+**2D baseline:** window/runtime, input, 2D rendering, transforms, camera, textures, entities/scene, collision, simple animation/audio, level setup, packaging.
+
+**2.5D extension:** depth, layers, parallax, selected 3D assets and lighting, driven by a representative game. The 2D path stays first-class.
+
+---
+
+## 12. Testing and quality gates
 
 - Keep the reference game building and playable at each milestone.
-- Test pure utilities and input-state/action logic where feasible.
-- Test world/actor/component lifecycle, deferred destruction, and world transitions.
-- Build Debug and Release from a clean checkout.
-- Keep compiler warnings enabled and fix meaningful warnings.
-- Add window/render smoke tests where CI/display constraints permit.
-- Test the packaged game from a clean directory, not only from the IDE build tree.
-- Use profiling and platform-appropriate diagnostics when available.
+- Test pure logic (input state/resolver/queue, later collision and lifecycle) in a small test executable.
+- Build Debug and Release from a clean checkout (CI once M1b lands).
+- Keep warnings enabled; fix meaningful ones.
+- Test the packaged game from a clean directory before calling M5 done.
 
-A milestone is not complete just because its API compiles. It is complete when the reference game uses the feature successfully and important behavior is tested.
+A milestone is complete when the reference game uses the feature successfully and important behavior is tested.
 
 ---
 
-## 12. Decision register
+## 13. Decision register
 
 | Topic | Current direction | Status |
 |---|---|---|
-| Product scope | 2D first; focused 2.5D later | Agreed direction |
-| Main priority | Make playable games early; evolve engine alongside them | **Primary rule** |
-| Authoring workflow | C++ code-first; no mandatory editor | Agreed direction |
-| Debug UI | ImGui for runtime inspection/debugging only | Agreed direction |
-| Runtime | Engine owns main loop and lifecycle | Agreed direction |
-| Gameplay model | GameInstance, World, GameMode, Actor, Component concepts | Direction agreed; APIs not frozen |
-| Composition/inheritance | Composition by default; optional shallow Actor subclasses | Agreed direction |
-| Engine deployment | `engine` shared library / DLL + game executable | **Current decision** |
-| Initial CMake structure | One engine target, one game target; tests as needed | Agreed direction |
-| First game | Small 2D platformer as vertical slice | Proposed reference project |
-| Physics backend | Choose after the first playable collision requirements are clear | Deferred |
-| Asset serialization | Add when the game workflow needs it | Deferred |
-| Hot reload/plugins/editor | Not initial requirements | Deferred |
+| Product scope | 2D first; focused 2.5D later | Agreed |
+| Main priority | Playable games early; engine grows alongside | **Primary rule** |
+| Authoring workflow | C++ code-first; no mandatory editor | Agreed |
+| Debug UI | ImGui for tuning/inspection; introduced at M1b | Agreed |
+| Runtime | Engine owns loop and lifecycle (`Run` + `Application`) | **Implemented** |
+| Game interface | `Engine::Game` callbacks; no `GameInstance` yet | **Implemented** |
+| Gameplay structure | `Scene` first; `World`/`GameMode`/`GameInstance` deferred | Changed in 1.2 |
+| Entity model | Actor/Component vs handles vs ECS undecided; decide after M1b | Open |
+| Engine deployment | `engine` SHARED + game exe, for hot-reload potential | **Current decision** |
+| Shared vs static revisit | Reconsider at end of M3 if hot reload unused | Proposed |
+| CMake structure | One engine target, one game target | Agreed |
+| Renderer | Direct OpenGL `Renderer2D`; no RHI | Agreed |
+| Math library | glm, as a submodule | Pending (not yet added) |
+| Input | Feature-frozen; wire contexts when needed | Agreed |
+| First game | Small 2D platformer | Reference project |
+| Physics backend | Own AABB collision in game code first | Deferred |
+| Asset serialization / hot reload / plugins / editor | Not initial requirements | Deferred |
 | Full 2.5D feature set | Driven by a representative game | Deferred |
 
 ---
 
-## 13. How we change architecture safely
+## 14. How we change architecture safely
 
 1. Inspect the actual repository and build graph before changing code.
-2. Identify the smallest change that advances the current playable milestone.
-3. Update code, CMake, tests, and this document together when a decision changes.
+2. Pick the smallest change that advances the current milestone.
+3. Update code, CMake, tests, `STATUS.md` and this document together when a decision changes.
 4. Mark decisions as agreed, proposed, or deferred.
-5. Keep implementation status separate from architecture intent.
-6. Preserve a playable reference game during refactors.
-7. Prefer a small, tested working slice over a large unfinished subsystem.
+5. Preserve a playable reference game during refactors.
+6. Prefer a small, tested working slice over a large unfinished subsystem.
 
 ---
 
 ## Immediate next steps
 
-1. Audit the current repository and verify the actual engine DLL, game executable, public headers, and CMake target settings.
-2. Make sure the game entry point hands control to an engine-owned runtime rather than implementing its own frame loop.
-3. Get a minimal window + input + simple 2D draw path running.
-4. Make the first controllable character and platform prototype playable.
-5. Only then firm up the Actor/Component API based on what that prototype needs.
-6. Keep the prototype alive as the reference game while adding features.
+1. Apply the small `Application::Run` fixes listed in `STATUS.md` (OnResize after OnStart, standard includes, backlog check, consistent shutdown rule).
+2. Add glm as a submodule; fix `.gitignore`.
+3. Implement `Renderer2D` (ortho camera, batched quads) and move viewport/clear into it.
+4. Build the player and platforms in game code with intent sampling and a fixed step.
+5. Add the ImGui tuning panel.
+6. Only then decide the entity model.
 
-**Guiding principle:** the engine is successful when it helps us make games—not when every planned subsystem exists.
+**Guiding principle:** the engine is successful when it helps us make games, not when every planned subsystem exists.

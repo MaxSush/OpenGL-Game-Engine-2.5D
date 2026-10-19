@@ -8,7 +8,6 @@
 #include <engine/platform/input_backend.h>
 #include "glfw_input_backend.h"
 
-
 namespace Engine
 {
 	std::unique_ptr<Window> Window::Create(const WindowProps& props)
@@ -20,10 +19,9 @@ namespace Engine
 	{
 		glfwSetErrorCallback(GLFW_Window::ErrorCallback);
 
-		int err = glfwInit();
-		if (!err)
+		if (!glfwInit())
 		{
-			throw WindowException(std::format("GLFWWindow::GLFWWindow => [{}] glfwInit failed", err));
+			throw WindowException("GLFWWindow::GLFWWindow => glfwInit failed");
 		}
 			
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, props.openGL_version_major);
@@ -46,8 +44,18 @@ namespace Engine
 		{
 			glfwDestroyWindow(m_window);
 			glfwTerminate();
-			throw WindowException(std::format("GLFWWindow::GLFWWindow => [{}] failed to initialize OpenGL context", version));
+			throw WindowException("GLFWWindow::GLFWWindow => failed to initialize OpenGL context");
 		}
+
+		glfwSetWindowUserPointer(m_window, this);
+		glfwSetKeyCallback(m_window, &GLFW_Window::KeyCallback);
+		glfwSetMouseButtonCallback(m_window, &GLFW_Window::MouseButtonCallback);
+		glfwSetCursorPosCallback(m_window, &GLFW_Window::CursorPosCallback);
+		glfwSetScrollCallback(m_window, &GLFW_Window::ScrollCallback);
+		glfwSetWindowFocusCallback(m_window, &GLFW_Window::WindowFocusCallback);
+		glfwSetCursorEnterCallback(m_window, &GLFW_Window::CursorEnterCallback);
+		glfwSetCharCallback(m_window, &GLFW_Window::CharCallback);
+		glfwSetFramebufferSizeCallback(m_window, &GLFW_Window::FramebufferSizeCallback);
 
 		glfwSwapInterval((props.vsync) ? 1 : 0);
 
@@ -58,6 +66,11 @@ namespace Engine
 
 	GLFW_Window::~GLFW_Window()
 	{
+		if (m_input_backend)
+		{
+			m_input_backend->OnWindowDestroyed();
+			m_input_backend = nullptr;
+		}
 		if (m_window)
 		{
 			glfwDestroyWindow(m_window);
@@ -104,13 +117,95 @@ namespace Engine
 		glfwSwapInterval((enabled) ? 1 : 0);
 	}
 
+	void GLFW_Window::RequestClose()
+	{
+		glfwSetWindowShouldClose(m_window, GLFW_TRUE);
+	}
+
+	bool GLFW_Window::IsMinimized() const
+	{
+		return (glfwGetWindowAttrib(m_window, GLFW_ICONIFIED) == GLFW_TRUE);
+	}
+
+	void GLFW_Window::SetResizeCallback(ResizeCallback callback)
+	{
+		m_resize_callback = std::move(callback);
+	}
+
 	std::unique_ptr<InputBackend> GLFW_Window::CreateInputBackend()
 	{
-		return std::make_unique<GLFWInputBackend>(m_window);
+		return std::make_unique<GLFWInputBackend>(this);
+	}
+
+	void GLFW_Window::AttachInputBackend(GLFWInputBackend* backend)
+	{
+		m_input_backend = backend;
+	}
+
+	void GLFW_Window::DetachInputBackend(GLFWInputBackend* backend)
+	{
+		if (m_input_backend == backend)
+		{
+			m_input_backend = nullptr;
+		}
 	}
 
 	void GLFW_Window::ErrorCallback(int error, const char* msg)
 	{
 		LOG_ERROR("GLFWWindow::ErrorCallback => [{}] : {}", error, msg);
+	}
+
+#define ENGINE_GLFW_SELF()	auto* self = static_cast<GLFW_Window*>(glfwGetWindowUserPointer(window)); if(!self  || !self->m_input_backend) return;
+
+	void GLFW_Window::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnKey(key, scancode, action, mods);
+	}
+
+	void GLFW_Window::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnMouseButton(button, action, mods);
+	}
+
+	void GLFW_Window::CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnCursorPos(xpos, ypos);
+	}
+
+	void GLFW_Window::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnScroll(xoffset, yoffset);
+	}
+
+	void GLFW_Window::WindowFocusCallback(GLFWwindow* window, int focused)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnWindowFocus(focused);
+	}
+
+	void GLFW_Window::CursorEnterCallback(GLFWwindow* window, int entered)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnCursorEnter(entered);
+	}
+
+	void GLFW_Window::CharCallback(GLFWwindow* window, unsigned int codepoint)
+	{
+		ENGINE_GLFW_SELF();
+		self->m_input_backend->OnChar(codepoint);
+	}
+#undef ENGINE_GLFW_SELF
+
+	void GLFW_Window::FramebufferSizeCallback(GLFWwindow* window, int width, int height)
+	{
+		auto* self = static_cast<GLFW_Window*>(glfwGetWindowUserPointer(window));
+		if (self && self->m_resize_callback)
+		{
+			self->m_resize_callback(width, height);
+		}
 	}
 }

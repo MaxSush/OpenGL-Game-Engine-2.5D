@@ -33,6 +33,8 @@ namespace Engine
 
 		for (auto& a : m_actions)
 		{
+			a.pressed = false;
+			a.released = false;
 			a.down = false;
 			a.scalar = 0.0f;
 			a.vector2 = {};
@@ -95,10 +97,26 @@ namespace Engine
 		case InputBindingSource::Key:
 			active = state.IsKeyDown(binding.key);
 			contribution = (active) ? binding.scale : 0.0f;
+			if (state.IsKeyPressed(binding.key))
+			{
+				it->pressed = true;
+			}
+			if (state.IsKeyReleased(binding.key))
+			{
+				it->released = true;
+			}
 			break;
 		case InputBindingSource::MouseButton:
 			active = state.IsMouseButtonDown(binding.mouse_button);
 			contribution = (active) ? binding.scale : 0.0f;
+			if (state.IsMouseButtonPressed(binding.mouse_button))
+			{
+				it->pressed = true;
+			}
+			if(state.IsMouseButtonReleased(binding.mouse_button))
+			{
+				it->released = true;
+			}
 			break;
 		case InputBindingSource::MouseAxisX:
 			contribution = state.GetMouseDelta().x * binding.scale;
@@ -155,8 +173,8 @@ namespace Engine
 			);
 
 			bool prev_down = (prev != m_previous_actions.end() && prev->down);
-			cur.pressed = (cur.down && !prev_down);
-			cur.released = (!cur.down && prev_down);
+			cur.pressed = cur.pressed || (cur.down && !prev_down);
+			cur.released = cur.released || (!cur.down && prev_down);
 		}
 	}
 

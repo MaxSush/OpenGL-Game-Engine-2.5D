@@ -7,7 +7,7 @@
 
 namespace Engine
 {
-	struct InputFrame
+	struct ENGINE_API InputFrame
 	{
 		uint64_t frame_id = 0;
 

@@ -21,7 +21,7 @@ namespace Engine::Log
 		return s_GameLogger;
 	}
 
-	void Engine::Log::Init()
+	void Init()
 	{
 		auto consoleSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 		consoleSink->set_pattern("[%T.%e] [%^%l%$] [%n] [%s:%#] %v");

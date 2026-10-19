@@ -21,21 +21,12 @@ namespace Engine
 	void InputSystem::BeginFrame()
 	{
 		m_physical_state.BeginFrame();
-
-		if (!m_action_map.AreActionsFinalized())
-		{
-			LOG_ERROR("InputSystem::BeginFrame => action resolution are not finalized");
-			return;
-		}
-
-		if (m_backend)
-		{
-			m_backend->PumpEvents();
-		}
-
 		ProcessEvents();
 
-		m_resolver.Resolve(m_physical_state, m_contexts.GetActiveContexts());
+		if (m_action_map.AreActionsFinalized())
+		{
+			m_resolver.Resolve(m_physical_state, m_contexts.GetActiveContexts());
+		}
 
 		PublishFrame();
 	}
@@ -43,7 +34,6 @@ namespace Engine
 	void InputSystem::EndFrame()
 	{
 		m_physical_state.EndFrame();
-		m_event_queue.Clear();
 	}
 
 	bool InputSystem::FinalizeActionSetup()
@@ -83,6 +73,12 @@ namespace Engine
 		while (m_event_queue.Pop(event))
 		{
 			m_physical_state.ApplyEvent(event);
+		}
+
+		if (m_event_queue.Overflowed())
+		{
+			LOG_WARN("InputSystem::ProcessEvents => event queue overflowed, input events were dropped");
+			m_event_queue.Clear();
 		}
 	}
 

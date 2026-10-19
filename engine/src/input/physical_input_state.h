@@ -54,6 +54,7 @@ namespace Engine
 		InputVector2 m_mouse_position{};
 		InputVector2 m_mouse_delta{};
 		InputVector2 m_scroll_delta{};
+		bool m_mouse_position_valid = false;
 
 		ModifierKey m_modifiers = ModifierKey::None;
 		bool m_focused = true;

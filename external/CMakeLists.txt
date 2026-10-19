@@ -5,6 +5,7 @@
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(glfw)
 
 # spdlog
@@ -18,7 +19,7 @@ add_subdirectory(spdlog)
 # Expose header -only library 
 add_library(header-only-libraries INTERFACE)
 
-target_include_directories(header-only-libraries
+target_include_directories(header-only-libraries SYSTEM
     INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

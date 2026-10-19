@@ -15,7 +15,5 @@ namespace Engine
 		virtual void SetEventQueue(InputEventQueue* queue) = 0;
 		virtual void SetCursorMode(CursorMode mode) = 0;
 		virtual CursorMode GetCursorMode() const = 0;
-
-		virtual void PumpEvents() = 0;
 	};
 }

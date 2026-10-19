@@ -7,27 +7,31 @@ struct GLFWwindow;
 
 namespace Engine
 {
+	class GLFW_Window;
+
 	class GLFWInputBackend : public InputBackend
 	{
 	public:
-		explicit GLFWInputBackend(GLFWwindow* window);
+		explicit GLFWInputBackend(GLFW_Window* owner);
 		~GLFWInputBackend() override;
 
 		// Inherited via InputBackend
 		void SetEventQueue(InputEventQueue* queue) override;
 		void SetCursorMode(CursorMode mode) override;
 		CursorMode GetCursorMode() const override;
-		void PumpEvents() override;
+
+		// Called by GLFW_Window
+		void OnWindowDestroyed();
+		void OnKey(int key, int scancode, int action, int mods);
+		void OnMouseButton(int button, int action, int mods);
+		void OnCursorPos(double xpos, double ypos);
+		void OnScroll(double xoffset, double yoffset);
+		void OnWindowFocus(int focused);
+		void OnCursorEnter(int entered);
+		void OnChar(unsigned int codepoint);
 
 	private:
-		static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-		static void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-		static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos);
-		static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-		static void WindowFocusCallback(GLFWwindow* window, int focused);
-		static void CursorEnterCallback(GLFWwindow* window, int entered);
-		static void CharCallback(GLFWwindow* window, unsigned int codepoint);
-
+		GLFW_Window* m_owner = nullptr;
 		GLFWwindow* m_window = nullptr;
 		InputEventQueue* m_queue = nullptr;
 		CursorMode m_cursor_mode = CursorMode::Visible;

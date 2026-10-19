@@ -6,6 +6,7 @@
 #include <string_view>
 #include <stdexcept>
 #include <memory>
+#include <functional>
 
 namespace Engine
 {
@@ -61,6 +62,12 @@ namespace Engine
 
 		virtual void SetTitle(std::string_view title) = 0;
 		virtual void SetVSync(bool enabled) = 0;
+
+		using ResizeCallback = std::function<void(int width, int height)>;
+
+		virtual void RequestClose() = 0;
+		virtual bool IsMinimized() const = 0;
+		virtual void SetResizeCallback(ResizeCallback callback) = 0;
 
 		virtual std::unique_ptr<InputBackend> CreateInputBackend() = 0;
 
