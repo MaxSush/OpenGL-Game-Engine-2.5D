@@ -66,16 +66,6 @@ namespace Engine
 
 	GLFWInputBackend::~GLFWInputBackend()
 	{
-		glfwSetKeyCallback(m_window, nullptr);
-		glfwSetMouseButtonCallback(m_window, nullptr);
-		glfwSetCursorPosCallback(m_window, nullptr);
-		glfwSetScrollCallback(m_window, nullptr);
-		glfwSetWindowFocusCallback(m_window, nullptr);
-		glfwSetCursorEnterCallback(m_window, nullptr);
-		glfwSetCharCallback(m_window, nullptr);
-
-		glfwSetWindowUserPointer(m_window, nullptr);
-
 		if (m_owner)
 		{
 			m_owner->DetachInputBackend(this);

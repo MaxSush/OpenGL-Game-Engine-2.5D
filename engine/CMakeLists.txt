@@ -59,6 +59,7 @@ endif()
 target_link_libraries(engine 
         PUBLIC 
             spdlog::spdlog 
+            glm::glm
         PRIVATE 
             glfw 
             header-only-libraries

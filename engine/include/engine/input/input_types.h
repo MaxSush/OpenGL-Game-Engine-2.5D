@@ -43,7 +43,7 @@ namespace Engine
 		PageUp = 266,
 		PageDown = 267,
 		Home = 268,
-		End = 269,		
+		End = 269,	
 		CapsLock = 280,
 		ScrollLock = 281,
 		NumLock = 282,

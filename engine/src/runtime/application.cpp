@@ -5,6 +5,12 @@
 
 #include <glad/gl.h>
 
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <exception>
+#include <thread>
+
 namespace Engine
 {
 	Application::Application(Game& game, const AppConfig& config)
