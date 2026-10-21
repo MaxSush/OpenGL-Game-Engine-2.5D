@@ -2,8 +2,7 @@
 #include <engine/game.h>
 #include <engine/core/logger/log.h>
 #include <engine/input/input.h>
-
-#include <glad/gl.h>
+#include <engine/renderer/renderer.h>
 
 #include <algorithm>
 #include <chrono>
@@ -36,8 +35,10 @@ namespace Engine
 		{
 			return;
 		}
-		// TODO: move into the renderer in step 10
-		glViewport(0, 0, width, height);
+		if (m_renderer)
+		{
+			m_renderer->SetViewport(width, height);
+		}
 		m_game.OnResize(width, height);
 	}
 
@@ -64,16 +65,15 @@ namespace Engine
 
 	int Application::Run()
 	{
+		m_config.window.resizable = true;
 		m_window = Window::Create(m_config.window);
 		m_input = std::make_unique<Input>(*m_window);
+		m_renderer = std::unique_ptr<Renderer>(new Renderer());
 		m_game.m_app = this;
 		m_window->SetResizeCallback([this](int w, int h) { OnFramebufferResize(w, h); });
 
 		const Dimension fb = m_window->GetFramebufferSize();
-		if (fb.width > 0 && fb.height > 0)
-		{
-			glViewport(0, 0, fb.width, fb.height);
-		}
+		m_renderer->SetViewport(fb.width, fb.height);
 
 		if (!m_game.OnStart())
 		{
@@ -90,10 +90,7 @@ namespace Engine
 			return 1;
 		}
 
-		if (fb.width > 0 && fb.height > 0)
-		{
-			m_game.OnResize(fb.width, fb.height);
-		}
+		m_renderer->SetViewport(fb.width, fb.height);
 
 		using Clock = std::chrono::steady_clock;
 		auto last = Clock::now();
@@ -139,13 +136,10 @@ namespace Engine
 					accumulator = 0.0f;
 				}
 
-				const auto& c = m_config.clear_color;
-				glClearColor(c[0], c[1], c[2], c[3]);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+				m_renderer->BeginFrame(m_config.clear_color);
 				m_game.OnRender();
-
 				m_window->SwapBuffers();
+
 				m_input->EndFrame();
 				UpdateFps(dt);
 			}

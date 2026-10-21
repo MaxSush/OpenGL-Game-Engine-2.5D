@@ -1,4 +1,6 @@
 .vs/
+.github/*
+!.github/copilot-instructions.md
 out/
 
 notes/*

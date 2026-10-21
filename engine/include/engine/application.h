@@ -11,6 +11,7 @@ namespace Engine
 {
 	class Game;
 	class Input;
+	class Renderer;
 
 	struct AppConfig
 	{
@@ -36,6 +37,7 @@ namespace Engine
 
 		Window& GetWindow() { return *m_window; }
 		Input& GetInput() { return *m_input; }
+		Renderer& GetRenderer() { return *m_renderer; }
 		const FrameTime& GetTime() const { return m_time; }
 
 	private:
@@ -46,6 +48,7 @@ namespace Engine
 		AppConfig m_config;
 		std::unique_ptr<Window> m_window;
 		std::unique_ptr<Input> m_input;
+		std::unique_ptr<Renderer> m_renderer;
 		FrameTime m_time;
 
 		float m_fps_timer = 0.0f;
