@@ -28,6 +28,9 @@ namespace Engine
 		// After the framebuffer is cleared, before the buffer swap.
 		virtual void OnRender() {}
 
+		// Called once per rendered frame when AppConfig::enable_debug_ui is true.
+		virtual void OnDebugUI(DebugUI& /* ui */) {}
+
 		// Framebuffer size changed (never called with 0x0).
 		virtual void OnResize(int /*width*/, int /*height*/) {}
 

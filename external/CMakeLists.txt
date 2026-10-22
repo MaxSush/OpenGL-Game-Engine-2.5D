@@ -22,6 +22,9 @@ set(GLM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLM_BUILD_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(glm)
 
+# imgui
+add_subdirectory(imgui)
+
 # Expose header -only library 
 add_library(header-only-libraries INTERFACE)
 

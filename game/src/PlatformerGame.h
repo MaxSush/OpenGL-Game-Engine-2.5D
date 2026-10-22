@@ -18,6 +18,7 @@ public:
 	void OnUpdate(float dt) override;
 	void OnFixedUpdate(float step) override;
 	void OnRender() override;
+	void OnDebugUI(Engine::DebugUI& ui) override;
 	void OnShutdown() override;
 
 private:

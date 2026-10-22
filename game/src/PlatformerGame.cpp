@@ -16,9 +16,9 @@ bool PlatformerGame::OnStart()
 	Engine::InputBinding b;
 	b.source = Engine::InputBindingSource::Key;
 
-	b.action = m_move_x;	b.key = Engine::Key::A;     b.scale = -1.0f;	actions.AddBinding(b);
-	b.action = m_move_x;	b.key = Engine::Key::D;     b.scale = 1.0f;		actions.AddBinding(b);
-	b.action = m_jump;      b.key = Engine::Key::Space;  b.scale = 1.0f;	actions.AddBinding(b);
+	b.action = m_move_x;	b.key = Engine::Key::Left;		b.scale = -1.0f;	actions.AddBinding(b);
+	b.action = m_move_x;	b.key = Engine::Key::Right;     b.scale = 1.0f;		actions.AddBinding(b);
+	b.action = m_jump;      b.key = Engine::Key::Space;		b.scale = 1.0f;		actions.AddBinding(b);
 
 	auto& contexts = App().GetInput().GetContexts();
 	auto ctx = contexts.RegisterContext("Game", 0, Engine::InputConsumptionPolicy::Consume);
@@ -80,6 +80,36 @@ void PlatformerGame::OnRender()
 	r.DrawQuad(m_player.position, m_player.half_size * 2.0f, { 0.90f,0.40f,0.20f,1.0f });
 	
 	r.EndScene();
+}
+
+void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
+{
+	if (ui.Begin("Tuning"))
+	{
+		ui.SliderFloat("Gravity", m_tuning.gravity, -80.0f, -1.0f);
+		ui.SliderFloat("Release gravity multiplier", m_tuning.release_gravity_mult, 1.0f, 4.0f);
+		ui.SliderFloat("Jump velocity", m_tuning.jump_velocity, 1.0f, 25.0f);
+		ui.SliderFloat("Max speed", m_tuning.max_speed, 1.0f, 20.0f);
+		ui.SliderFloat("Acceleration", m_tuning.accel, 1.0f, 120.0f);
+		ui.SliderFloat("Friction", m_tuning.friction, 1.0f, 120.0f);
+		ui.SliderFloat("Max fall speed", m_tuning.max_fall_speed, -60.0f, -1.0f);
+		ui.SliderFloat("Coyote time", m_tuning.coyote_time, 0.0f, 0.3f);
+		ui.SliderFloat("Jump buffer time", m_tuning.jump_buffer_time, 0.0f, 0.3f);
+
+		ui.Seperator();
+		ui.Text("FPS: %.1f", App().GetTime().fps);
+
+		const auto& stats = App().GetRenderer().GetStats();
+		ui.Text("Draw calls: %u", static_cast<unsigned>(stats.draw_calls));
+		ui.Text("Quads: %u", static_cast<unsigned>(stats.quad_count));
+
+		ui.Seperator();
+		if (ui.Button("Reset player"))
+		{
+			ResetPlayer();
+		}
+	}
+	ui.End();
 }
 
 void PlatformerGame::OnShutdown()

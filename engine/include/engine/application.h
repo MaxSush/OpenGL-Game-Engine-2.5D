@@ -1,5 +1,6 @@
 #pragma once
 
+#include <engine/core/debug/debug_ui.h>
 #include <engine/engine_api.h>
 #include <engine/platform/platform_window.h>
 #include <engine/core/time.h>
@@ -12,6 +13,7 @@ namespace Engine
 	class Game;
 	class Input;
 	class Renderer;
+	class ImGuiLayer;
 
 	struct AppConfig
 	{
@@ -20,6 +22,7 @@ namespace Engine
 		float max_frame_time = 0.25f;
 		int max_fixed_steps_per_frame = 8;
 		bool show_fps_in_title = true;
+		bool enable_debug_ui = true;
 		std::array<float, 4> clear_color{ 0.10f,0.10f,0.12f,1.0f };
 	};
 
@@ -49,6 +52,8 @@ namespace Engine
 		std::unique_ptr<Window> m_window;
 		std::unique_ptr<Input> m_input;
 		std::unique_ptr<Renderer> m_renderer;
+		std::unique_ptr<ImGuiLayer> m_imgui_layer;
+		DebugUI m_debug_ui;
 		FrameTime m_time;
 
 		float m_fps_timer = 0.0f;

@@ -6,7 +6,8 @@ set(renderer "${CMAKE_CURRENT_SOURCE_DIR}/src/renderer" )
 
 set(core_sources
 	"${core}/logger/log.cpp"
-)
+    "${core}/debug/debug_ui.cpp"
+    "${core}/debug/imgui_layer.cpp")
 set(runtime_sources
 	"${runtime}/application.cpp"
 )
@@ -34,7 +35,7 @@ add_library(engine SHARED
     ${input_sources}
     ${runtime_sources}
     ${renderer_sources}
-)
+ "src/core/debug/imgui_layer.cpp")
 add_library(Engine::Engine ALIAS engine)
 
 target_include_directories(engine
@@ -68,6 +69,7 @@ target_link_libraries(engine
         PRIVATE 
             glfw 
             header-only-libraries
+            imgui
 )
 
 target_precompile_headers(engine PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.h")

@@ -4,6 +4,9 @@
 #include <engine/input/input.h>
 #include <engine/renderer/renderer.h>
 
+#include <core/debug/imgui_layer.h>
+#include <platform/glfw/glfw_window.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -69,6 +72,17 @@ namespace Engine
 		m_window = Window::Create(m_config.window);
 		m_input = std::make_unique<Input>(*m_window);
 		m_renderer = std::unique_ptr<Renderer>(new Renderer());
+
+		if (m_config.enable_debug_ui)
+		{
+			auto* glfw_window = dynamic_cast<GLFW_Window*>(m_window.get());
+			if (!glfw_window)
+			{
+				throw std::runtime_error("Debug UI requires a GLFW window backend");
+			}
+			m_imgui_layer = std::make_unique<ImGuiLayer>(glfw_window->GetNativeHandle());
+		}
+
 		m_game.m_app = this;
 		m_window->SetResizeCallback([this](int w, int h) { OnFramebufferResize(w, h); });
 
@@ -138,6 +152,12 @@ namespace Engine
 
 				m_renderer->BeginFrame(m_config.clear_color);
 				m_game.OnRender();
+				if (m_imgui_layer)
+				{
+					m_imgui_layer->BeginFrame();
+					m_game.OnDebugUI(m_debug_ui);
+					m_imgui_layer->EndFrame();
+				}
 				m_window->SwapBuffers();
 
 				m_input->EndFrame();
