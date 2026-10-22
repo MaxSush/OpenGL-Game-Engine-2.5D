@@ -38,7 +38,7 @@ namespace Engine::GL
 			}
 			catch (...)
 			{
-				glDeleteShader(fs);
+				glDeleteShader(vs);
 				throw;
 			}
 
@@ -83,6 +83,6 @@ namespace Engine::GL
 			return glGetUniformLocation(m_id, name);
 		}
 	private:
-		GLuint m_id;
+		GLuint m_id = 0;
 	};
 }

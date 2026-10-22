@@ -5,9 +5,9 @@
 #include <engine/input/input.h>
 #include <engine/renderer/camera.h>
 
-#include "Player.h"
-#include "Tuning.h"
-#include "Level.h"
+#include "gameplay/Player.h"
+#include "gameplay/Tuning.h"
+#include "gameplay/Level.h"
 
 class PlatformerGame final : public Engine::Game
 {

@@ -6,6 +6,8 @@
 #include "buffer.h"
 #include "shader.h"
 
+#include <cstddef>
+
 namespace Engine
 {
 	namespace
@@ -171,6 +173,8 @@ namespace Engine
 
 	void Renderer::BeginFrame(const std::array<float, 4>& c)
 	{
+		m_impl->stats = {};
+
 		if (m_impl->in_scene)
 		{
 			LOG_WARN("Renderer2D: previous scene was not ended (missing EndScene)");

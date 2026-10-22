@@ -5,6 +5,7 @@
 namespace Engine
 {
 	class Application;
+	class DebugUI;
 
 	class ENGINE_API Game
 	{

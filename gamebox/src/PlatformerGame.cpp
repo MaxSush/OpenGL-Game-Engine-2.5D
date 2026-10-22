@@ -34,7 +34,7 @@ bool PlatformerGame::OnStart()
 	return true;
 }
 
-void PlatformerGame::OnUpdate(float dt)
+void PlatformerGame::OnUpdate(float /* dt */)
 {
 	auto& input = App().GetInput();
 
@@ -61,7 +61,7 @@ void PlatformerGame::OnFixedUpdate(float step)
 {
 	StepPlayer(m_player, m_intent, m_tuning, m_level.solids, step);
 
-	if (m_player.position.y < m_level.kill_y || std::abs(m_player.position.x) > 12.0f)
+	if (m_player.position.y < m_level.kill_y || std::abs(m_player.position.x) > m_level.world_bound)
 	{
 		ResetPlayer();
 	}
@@ -96,14 +96,14 @@ void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
 		ui.SliderFloat("Coyote time", m_tuning.coyote_time, 0.0f, 0.3f);
 		ui.SliderFloat("Jump buffer time", m_tuning.jump_buffer_time, 0.0f, 0.3f);
 
-		ui.Seperator();
+		ui.Separator();
 		ui.Text("FPS: %.1f", App().GetTime().fps);
 
 		const auto& stats = App().GetRenderer().GetStats();
 		ui.Text("Draw calls: %u", static_cast<unsigned>(stats.draw_calls));
 		ui.Text("Quads: %u", static_cast<unsigned>(stats.quad_count));
 
-		ui.Seperator();
+		ui.Separator();
 		if (ui.Button("Reset player"))
 		{
 			ResetPlayer();

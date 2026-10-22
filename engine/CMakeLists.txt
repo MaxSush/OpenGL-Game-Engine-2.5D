@@ -35,7 +35,7 @@ add_library(engine SHARED
     ${input_sources}
     ${runtime_sources}
     ${renderer_sources}
- "src/core/debug/imgui_layer.cpp")
+)
 add_library(Engine::Engine ALIAS engine)
 
 target_include_directories(engine

@@ -13,9 +13,9 @@ namespace Engine
 		void End();
 
 		void Text(const char* fmt, ...);
-		void Seperator();
+		void Separator();
 		bool Button(const char* label);
-		bool Checkbox(const char* lable, bool& value);
+		bool Checkbox(const char* label, bool& value);
 		bool SliderFloat(const char* label, float& value, float min, float max);
 
 	private:

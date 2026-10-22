@@ -20,5 +20,5 @@ add_subdirectory ("external")
 add_subdirectory("engine")
 
 if(PROJECT_IS_TOP_LEVEL)
-    add_subdirectory(game)
+    add_subdirectory(gamebox)
 endif()

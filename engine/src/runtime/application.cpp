@@ -68,7 +68,6 @@ namespace Engine
 
 	int Application::Run()
 	{
-		m_config.window.resizable = true;
 		m_window = Window::Create(m_config.window);
 		m_input = std::make_unique<Input>(*m_window);
 		m_renderer = std::unique_ptr<Renderer>(new Renderer());

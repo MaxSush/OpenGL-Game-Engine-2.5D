@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <cstdarg>
+
 namespace Engine
 {
 	bool DebugUI::Begin(const char* title)
@@ -22,7 +24,7 @@ namespace Engine
 		va_end(args);
 	}
 
-	void DebugUI::Seperator()
+	void DebugUI::Separator()
 	{
 		ImGui::Separator();
 	}

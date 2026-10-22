@@ -27,6 +27,9 @@ namespace Engine
 			throw std::runtime_error("Failed to initialize ImGui OpenGL3 backend");
 		}
 		m_opengl_initialized = true;
+
+		ImGuiIO& io = ImGui::GetIO();
+		io.IniFilename = nullptr;
 	}
 
 	ImGuiLayer::~ImGuiLayer()
