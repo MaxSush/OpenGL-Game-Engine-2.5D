@@ -1,6 +1,9 @@
 add_executable(game 
-    "src/main.cpp"
+    "main.cpp"
     "src/PlatformerGame.cpp"
+    "src/Player.cpp"
+    "src/Collision.cpp"
+    "src/Level.cpp"
 )
 
 target_link_libraries(game 
@@ -9,6 +12,11 @@ target_link_libraries(game
 )
 
 target_compile_features(game PRIVATE cxx_std_20)
+
+target_include_directories(game
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
 
 if (MSVC)
     target_compile_options(game PRIVATE /W4 /permissive-)
