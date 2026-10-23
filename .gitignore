@@ -1,9 +1,5 @@
 .vs/
 
-.github/*
-!.github/copilot-instructions.md
-!.github/workflows/
-
 out/
 
 notes/*

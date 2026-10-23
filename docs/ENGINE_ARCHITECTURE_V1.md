@@ -1,20 +1,28 @@
 # OpenGL Engine — Architecture Map & Game-First Roadmap
 
 **Status:** Living architecture baseline  
-**Version:** 1.2  
-**Last updated:** 2026-10-20  
+**Version:** 1.3  
+**Last updated:** 2026-10-23  
 **Primary priority:** Make a real, playable 2D game as early as possible, then grow the engine in response to actual game needs.
 
 > This document describes intended architecture and the development plan. It does not claim that every listed system exists. **Implementation status lives in [`STATUS.md`](STATUS.md).** Update this document only when an architecture decision changes.
 
+### Changes in 1.3
+
+- **M1 is complete:** renderer, camera, playable prototype, ImGui tuning panel, unit tests and CI all exist. Details are in `STATUS.md`.
+- Renderer is named `Renderer` and the camera `Camera` (the earlier `Renderer2D`/`Camera2D` names are retired). World units are Y-up with a fixed vertical extent.
+- Debug UI decision recorded: the engine owns the ImGui context; the game sees only a narrow `DebugUI` interface. ImGui is a private static dependency.
+- Testing policy recorded: pure logic is tested in a separate `engine_tests` executable (doctest), and CI builds and tests Debug and Release.
+- **New deferred items:** render interpolation alpha (known quivering at 120 Hz) and a platform-neutral debug UI backend (`Application` currently depends on GLFW and OpenGL ImGui backends directly).
+- M2 is split into M2a (gameplay slice in game code) and M2b (entity model decision).
+
 ### Changes in 1.2
 
-- `Game` + `Engine::Run(game, config)` replaces `GameInstance`/`GameMode` as the M0/M1 gameplay entry point (implemented).
-- `GameInstance`, `World`, `GameMode` are now **deferred**; a plain `Scene` is preferred until persistent cross-scene state or multiple worlds are needed.
-- Actor/Component is marked **unproven**; the model is chosen after the prototype (see 4).
-- Shared library kept deliberately (future hot-reload), with an explicit list of the costs we accept (see 8).
-- M1 split into M1a (loop, time, renderer) and M1b (player, collision). Debug UI moved earlier.
-- Input subsystem is declared **feature-frozen** until the game needs more.
+- `Game` + `Engine::Run(game, config)` replaced `GameInstance`/`GameMode` as the gameplay entry point.
+- `GameInstance`, `World`, `GameMode` deferred; a plain `Scene` is preferred until a proven need.
+- Actor/Component marked unproven; the model is chosen after the prototype.
+- Shared library kept deliberately (future hot-reload), with the accepted costs listed (see 8).
+- Input subsystem declared feature-frozen.
 
 ---
 
@@ -31,7 +39,7 @@ The engine's purpose is to help us make games, not to be an impressive framework
 - The engine owns startup, frame loop, timing, event processing, rendering orchestration and shutdown.
 - Game code defines gameplay in C++; no mandatory editor.
 - Prefer composition; keep any inheritance optional and shallow.
-- Keep GLFW/OpenGL out of game-facing headers.
+- Keep GLFW, OpenGL and ImGui out of game-facing headers.
 - Build the engine as a **shared library** (`engine.dll`) with a deliberate public API boundary.
 - Use Dear ImGui for runtime tuning and inspection, not as a world-authoring tool.
 - Add systems only when the current game or the next milestone needs them.
@@ -55,18 +63,11 @@ We develop the engine alongside a small reference game and let that game reveal 
 
 ### The reference game
 
-A small side-scrolling platformer. Working title: **Shadow Runner**.
+A small side-scrolling platformer. Working title: **Shadow Runner** (executable target: `gamebox`).
 
-First version:
-- Window and an engine-owned game loop.
-- Keyboard input.
-- A player as a rectangle or placeholder sprite.
-- Horizontal movement and jumping.
-- A few platforms and basic collision.
-- A camera that shows the play area.
-- A quit/restart path and a clear build-and-run process.
+Current (M1): window, engine-owned loop, keyboard input, a rectangle player with acceleration, friction, buffered jump, coyote time and variable jump height, AABB collision against a small level, live tuning panel.
 
-Later: sprites, animation, enemies, pickups, sound, multiple levels, save data, parallax, lighting, selected 3D objects.
+Next: a larger level with camera follow, pickups, a hazard, a goal, one enemy. Later: sprites, animation, sound, multiple levels, save data, parallax, lighting, selected 3D objects.
 
 ### Rules for avoiding overengineering
 
@@ -77,6 +78,7 @@ Later: sprites, animation, enemies, pickups, sound, multiple levels, save data, 
 5. If a feature can live in game code and is not reusable yet, keep it there. Promote it after a second use or a clear cross-cutting need.
 6. Keep the reference game working after every milestone.
 7. Freeze subsystems that are already "enough" (currently: input) rather than polishing them ahead of need.
+8. Every deferred item gets a written trigger (see the register in `STATUS.md`).
 
 ---
 
@@ -85,10 +87,10 @@ Later: sprites, animation, enemies, pickups, sound, multiple levels, save data, 
 The engine owns execution. The game supplies behavior through stable extension points.
 
 ```text
-                    GAME EXECUTABLE
+                    GAME EXECUTABLE (gamebox)
               (Shadow Runner / user's game)
                           |
-              class MyGame : Engine::Game
+              class PlatformerGame : Engine::Game
               int main() { return Engine::Run(game, config); }
                           |
                           v
@@ -96,19 +98,20 @@ The engine owns execution. The game supplies behavior through stable extension p
 |                  ENGINE RUNTIME (DLL)                    |
 |                                                          |
 |  Engine::Run  -> log init/shutdown, exception reporting  |
-|  Application  -> owns window, input, clock, frame loop   |
+|  Application  -> owns window, input, renderer, debug UI, |
+|                  clock, frame loop                       |
 |    - poll events -> Input::BeginFrame                    |
 |    - OnUpdate(dt)  (once per rendered frame)             |
 |    - OnFixedUpdate(step)  (0..N per frame)               |
-|    - clear -> OnRender -> swap -> Input::EndFrame        |
+|    - renderer clear -> OnRender -> OnDebugUI -> swap     |
 |                                                          |
-|  Services (added as needed)                              |
+|  Services                                                |
 |  - Window / Platform events        [implemented]         |
 |  - Input (actions, contexts)       [implemented, frozen] |
-|  - 2D Renderer / Camera / Textures [next]                |
+|  - Renderer / Camera (batched quads)[implemented]        |
+|  - Debug UI (ImGui, narrow API)    [implemented]         |
 |  - Collision / Movement helpers    [game code first]     |
-|  - Debug UI (ImGui)                [soon]                |
-|  - Audio / Animation / Assets      [when needed]         |
+|  - Textures / Audio / Animation    [when needed]         |
 +----------------------------------------------------------+
                           |
                           v
@@ -116,18 +119,18 @@ The engine owns execution. The game supplies behavior through stable extension p
              GLFW / OpenGL / OS facilities
 ```
 
-This is a logical architecture, not a promise that each box becomes a separate target. Keep one `engine` target and one `game` target until there is a concrete dependency, testing or build reason to split.
+This is a logical architecture, not a promise that each box becomes a separate target. Keep one `engine` target and one game target until there is a concrete dependency, testing or build reason to split.
 
 ### Dependency direction
 
 ```text
 Game code
-   -> Public engine API (Game, Application, Input, Renderer2D ...)
+   -> Public engine API (Game, Application, Input, Renderer, Camera, DebugUI ...)
       -> Private implementations (src/)
-         -> GLFW / OpenGL / OS / third-party libraries
+         -> GLFW / OpenGL / ImGui / OS / third-party libraries
 ```
 
-Game code must not call GLFW, touch OpenGL buffers, or own the runtime loop.
+Game code must not call GLFW, touch OpenGL buffers, call ImGui directly, or own the runtime loop.
 
 ---
 
@@ -135,24 +138,41 @@ Game code must not call GLFW, touch OpenGL buffers, or own the runtime loop.
 
 ### `Engine::Run` and `Application` (implemented)
 
-`Run` initialises logging, constructs `Application`, converts exceptions to a log entry and exit code, and shuts logging down last. `Application` owns the window, input system and clock and runs the loop. It destroys input before the window, and both before the logger. Nothing throws across the DLL boundary.
+`Run` initialises logging, constructs `Application`, converts exceptions to a log entry and exit code, and shuts logging down last. `Application` owns the window, input system, renderer, optional debug UI layer and clock, and runs the loop. Destruction order: debug UI layer, renderer (needs the GL context), input, window, then the logger. Nothing throws across the DLL boundary.
 
 ### `Game` (implemented)
 
-An abstract class with overridable callbacks: `OnStart`, `OnUpdate`, `OnFixedUpdate`, `OnRender`, `OnResize`, `OnShutdown`. The game registers input actions in `OnStart`; `Application` finalizes the action map afterward. The game never owns the loop.
+An abstract class with overridable callbacks: `OnStart`, `OnUpdate`, `OnFixedUpdate`, `OnRender`, `OnResize`, `OnDebugUI(DebugUI&)`, `OnShutdown`. The game registers input actions in `OnStart`; `Application` finalizes the action map afterward. The game never owns the loop.
 
 Contract notes:
 - `OnUpdate` samples input intent once per rendered frame.
 - `OnFixedUpdate` advances simulation at a constant step and must not read raw per-frame "pressed" input directly; it consumes intent captured in `OnUpdate`.
 - `OnResize` is delivered after `OnStart` and never with a zero size.
+- `OnDebugUI` is called only when `AppConfig::enable_debug_ui` is true, between the engine's ImGui begin and end.
 
-### `Scene` (planned, M2)
+### `Renderer` and `Camera` (implemented)
+
+- **Style:** immediate-mode batch renderer. The game submits colored quads each frame; the renderer batches them into one dynamic vertex buffer with a static index buffer and one embedded shader, flushing when full or at `EndScene`.
+- **Ownership:** `Application` owns the renderer; the game reaches it through `App().GetRenderer()`. The public header is a pimpl facade; no GL types leave `src/`.
+- **Frame split:** the engine owns clear, viewport and buffer swap (frame functions are private to `Application`). The game owns scene submission through `BeginScene(camera)`, `DrawQuad(center, size, color)` and `EndScene()`.
+- **Coordinates:** world units, Y-up. `Camera` has a fixed vertical extent; the width follows the framebuffer aspect ratio. Game code never depends on window resolution.
+- **State:** depth test off, alpha blending on, draw order equals submission order. Draw-call and quad counts are tracked each frame.
+- **Robustness:** GL objects use small RAII wrappers; shader compile or link failure throws during init and is reported by `Engine::Run`; minimized windows never set a zero viewport.
+- **Not here yet:** textures, rotation, layers, an RHI. Each waits for a real user.
+
+### `DebugUI` (implemented)
+
+The engine owns the ImGui context and the GLFW/OpenGL3 backends (`ImGuiLayer`, internal). The game receives a narrow `DebugUI&` with only the widgets it needs (currently `Begin`, `End`, `Text`, `Separator`, `Button`, `Checkbox`, `SliderFloat`). ImGui is a private static dependency of the engine: its headers and symbols are not exported, which also keeps a future hot-reloaded game DLL from needing to share ImGui's context. New widgets are added only on real need.
+
+Known coupling (deferred): `Application` and `ImGuiLayer` currently depend on GLFW and OpenGL directly. See section 10.
+
+### `Scene` (planned, M2b)
 
 A simple container for the current level's entities and level-scoped state, built in C++. It replaces `World`/`GameMode` until a proven need arises. Level loading is a function that fills a scene.
 
-### Entity model (undecided, M2)
+### Entity model (undecided, M2b)
 
-Unreal's `Actor*` is safe because of UObject, garbage collection and reflection. We have deliberately excluded those, so **object lifetime is our real risk**. Decide after the prototype between:
+Unreal's `Actor*` is safe because of UObject, garbage collection and reflection. We have deliberately excluded those, so **object lifetime is our real risk**. Decide after the M2a gameplay slice between:
 
 1. Plain structs in game-owned containers, with stable IDs or handles.
 2. A small custom handle-based entity store.
@@ -166,16 +186,18 @@ In Unreal these exist largely for networking, server authority and level travel.
 
 ---
 
-## 5. Game-facing API (current direction)
+## 5. Game-facing API (current)
 
 ```cpp
 class PlatformerGame final : public Engine::Game
 {
 public:
-    bool OnStart() override;                 // register actions, load level
-    void OnUpdate(float dt) override;        // sample input intent
-    void OnFixedUpdate(float step) override; // movement, collision
-    void OnRender() override;                // draw via Renderer2D
+    bool OnStart() override;                       // register actions, build level
+    void OnUpdate(float dt) override;              // sample input intent
+    void OnFixedUpdate(float step) override;       // movement, collision
+    void OnRender() override;                      // draw via Renderer
+    void OnResize(int w, int h) override;          // camera aspect
+    void OnDebugUI(Engine::DebugUI& ui) override;  // tuning panel
     void OnShutdown() override;
 };
 
@@ -192,71 +214,66 @@ int main()
 Input intent pattern for the player:
 
 ```text
-OnUpdate:      read actions -> fill Intent{ move_x, jump_buffered }
+OnUpdate:      read actions -> fill Intent{ move_x, jump_held, jump_pressed (latched) }
 OnFixedUpdate: consume Intent -> integrate velocity -> resolve collisions
-OnRender:      draw using current positions (interpolate only if needed)
+OnRender:      draw using current positions (interpolate once the alpha is added)
 ```
 
 ---
 
 ## 6. Game-first development roadmap
 
-### Milestone 0 — Reliable build, entry point, loop (largely done)
+### Milestone 0 — Reliable build, entry point, loop (done)
 
-- Clean CMake configure/build for engine DLL and game executable.
-- Window, input, logging.
-- `Game` interface, `Application`, `Engine::Run`, frame timing, fixed-step accumulator.
-- Minimize and resize handling, clean shutdown order.
+Engine DLL and game executable build cleanly; window, input, logging; `Game`, `Application`, `Engine::Run`, frame timing, fixed-step accumulator; minimize and resize handling; clean shutdown order.
 
-**Result:** pressing Run opens a window, runs through the engine runtime, quits on Esc.  
-**Exit criteria:** clean Debug build, repeatable launch/shutdown, no stuck input.
+### Milestone 1a — First pixels (done)
 
-### Milestone 1a — First pixels
+glm as a submodule; `Renderer` with an ortho `Camera`, batched colored quads, embedded shaders; viewport and clear owned by the renderer.
 
-- glm dependency (as a submodule).
-- Minimal `Renderer2D`: orthographic camera, batched colored quads, embedded shaders. Direct OpenGL calls; no RHI.
-- Move `glViewport`/clear out of `Application` into the renderer.
+### Milestone 1b — First playable prototype (done)
 
-**Result:** colored rectangles on screen, responding to resize.
+Player controller and platform collision in game code; fixed-step movement with input-intent sampling, jump buffering and coyote time; ImGui tuning panel; unit tests and CI (Debug and Release).
 
-### Milestone 1b — First playable prototype
+**Exit criteria met:** a controllable character runs and jumps across platforms; movement is framerate independent; tests and CI are green. Known issue: quivering at 120 Hz (interpolation deferred).
 
-- Player controller and platform collision in **game code** (AABB vs rectangles).
-- Fixed-step movement, input-intent sampling, jump buffering and coyote time as needed.
-- ImGui tuning panel (gravity, jump speed, friction) so movement can be tuned live.
+### Milestone 2a — Gameplay slice in game code (next)
 
-**Result:** a controllable character runs and jumps across platforms. **This is the milestone that matters.**  
-**Exit criteria:** someone can launch the game and play the tiny level; movement is framerate independent.
+- A level larger than the screen with camera follow.
+- A pickup, a hazard, a goal, and one patrolling enemy, as plain structs in vectors.
+- Restart path covering all of the above.
 
-### Milestone 2 — Minimum framework the prototype needs
+**Purpose:** force real spawn/destroy, several moving bodies and a second user of the collision code. Do not add `Scene` or an entity framework yet.
 
-- Choose the entity model (see 4) based on actual pain from M1b.
-- `Scene`, deferred spawn/destroy, a simple C++ level builder.
-- Move proven-reusable game code (for example AABB collision) into the engine.
+### Milestone 2b — Minimum framework the slice needs
+
+- Choose the entity model (see 4) from the actual pain in M2a.
+- `Scene` and deferred spawn/destroy only if M2a showed the need.
+- Promote AABB collision into the engine (the enemy is the second user).
 - Unit tests for lifecycle and core logic.
 
-**Exit criteria:** player, platforms and one enemy live in a scene; lifetime tests pass; the prototype still plays.
+**Exit criteria:** player, platforms, pickup, hazard and enemy live in the chosen structure; lifetime tests pass; the game still plays.
 
 ### Milestone 3 — Small complete 2D game
 
 - Textures/sprites (stb_image) and an asset-path strategy.
-- Camera follow and draw order.
-- One enemy, one pickup, one hazard or checkpoint.
 - Animation and audio as required.
-- Restart, level transition, minimal UI.
+- Level transition, minimal UI.
+- Render interpolation alpha if not done earlier.
 
-**Exit criteria:** someone other than the author can run and finish the game from a clean build.
+**Exit criteria:** someone other than the author can run and finish the game from a clean build. At the end of M3, revisit SHARED vs STATIC.
 
 ### Milestone 4 — Workflow improvements driven by friction
 
 - Inspector and collision/transform overlays.
-- Frame-time and renderer statistics.
+- Frame-time and renderer statistics beyond the current counters.
 - Input diagnostics.
-- CI build (Debug + Release) and expanded tests.
+- Expanded tests (CI already exists).
 
 ### Milestone 5 — Production basics
 
 - Debug and Release configurations, packaging of exe + `engine.dll` + third-party DLLs + assets.
+- Debug UI off by default in Release.
 - Missing-resource handling and a clean-checkout build/run guide.
 
 ### Milestone 6 — Focused 2.5D features (only if a game needs them)
@@ -265,7 +282,7 @@ Depth/layer policy, parallax, perspective camera, selected 3D props, lighting.
 
 ### Milestone 7 — Grow by demand
 
-Save/load, data-driven templates, tilemap tooling, controller support, remappable bindings, hot reload (if still wanted), more physics.
+Save/load, data-driven templates, tilemap tooling, controller support, remappable bindings, hot reload (if still wanted), more physics, platform and debug UI backend abstraction (if a second platform is wanted).
 
 ---
 
@@ -273,24 +290,24 @@ Save/load, data-driven templates, tilemap tooling, controller support, remappabl
 
 | Priority | Features | Why |
 |---|---|---|
-| **Done** | Window, input, logging, `Game`/`Application` loop, fixed-step timing | Foundation exists |
-| **Now** | Renderer2D with ortho camera, glm dependency | Nothing is drawn yet |
-| **Soon** | Player and collision in game code, ImGui tuning panel, input tests | Makes the prototype playable and tunable |
-| **When the game needs it** | Entity model and Scene, textures, animation, audio, level transitions, resource caching | Add when they improve the next playable milestone |
-| **Later** | 2.5D lighting, 3D props, perspective, advanced physics, save/load, serialization, hot reload | Avoid delaying the first game |
+| **Done** | Window, input, logging, `Game`/`Application` loop, fixed-step timing, `Renderer`/`Camera`, `DebugUI`, player and collision in game code, tests, CI | Foundation and first playable prototype exist |
+| **Now** | Larger level, camera follow, pickup, hazard, goal, enemy (game code) | Reveals the entity-model needs |
+| **Soon** | Entity model decision, `Scene` if needed, collision promoted to the engine | Driven by the gameplay slice |
+| **When the game needs it** | Textures, animation, audio, level transitions, resource caching, render interpolation alpha | Add when they improve the next playable milestone |
+| **Later** | 2.5D lighting, 3D props, perspective, advanced physics, save/load, serialization, hot reload, platform abstraction for debug UI | Avoid delaying the first game |
 | **Not planned** | Full editor, visual scripting, reflection/GC, plugin ecosystem, RHI abstraction | Outside the scope unless a strong need emerges |
 
 ---
 
 ## 8. Shared-library and CMake policy
 
-**Decision:** keep `engine` as a `SHARED` library plus a game executable. The primary reason is keeping a future hot-reload path open.
+**Decision:** keep `engine` as a `SHARED` library plus a game executable (`gamebox`). The primary reason is keeping a future hot-reload path open.
 
 ### Costs we are consciously accepting
 
 - Export annotations on every public class/function (`ENGINE_API`), and discipline about STL/third-party types in public headers.
 - Static spdlog gets linked into both exe and DLL, which works only while they share the same CRT. A hot-reloaded game DLL would add a third copy; solve that with an exported logging function if and when we reach it.
-- Unit tests cannot link private classes through the DLL. Test pure logic (`PhysicalInputState`, `InputActionResolver`, `InputEventQueue`) by compiling those `.cpp` files directly into a test executable.
+- Unit tests cannot link private classes through the DLL. Pure logic is tested by compiling those `.cpp` files directly into `engine_tests`.
 - Binary compatibility across compiler versions is not guaranteed; the API is source-level.
 
 ### Revisit trigger
@@ -301,45 +318,56 @@ If hot reload is not attempted by the end of Milestone 3, reconsider switching t
 
 - Single `ENGINE_API` macro: export when building the engine, import for consumers, visibility attribute on GCC/Clang, empty otherwise.
 - `CXX_VISIBILITY_PRESET hidden` and `VISIBILITY_INLINES_HIDDEN ON` so Linux builds catch missing exports.
-- Small data-only structs read by the game (for example `InputFrame` accessors) either carry `ENGINE_API` or are inline in the header.
-- Keep implementation-only dependencies PRIVATE when public headers do not need them.
+- Small data-only structs read by the game either carry `ENGINE_API` or are inline in the header.
+- Keep implementation-only dependencies PRIVATE when public headers do not need them (GLFW, glad, ImGui). glm and spdlog are PUBLIC because public headers use them.
 - Nothing may throw across the DLL boundary; `Engine::Run` is the catch-all.
 - Hot-reload shape (not implemented): a game DLL would export one `extern "C"` factory returning `Game*`.
 
 ### Include and target boundaries
 
-Public headers live under `engine/include/engine/`. Implementation lives under `engine/src/`. Use target-scoped CMake settings only. Third-party header-only includes are `SYSTEM` so warnings stay readable. Warnings are on (`/W4` or `-Wall -Wextra`) for the engine; the game target should follow.
+Public headers live under `engine/include/engine/`. Implementation lives under `engine/src/`. Use target-scoped CMake settings only. Third-party includes are `SYSTEM` so warnings stay readable. Warnings are on (`/W4` or `-Wall -Wextra`) for the engine, the game and the tests.
 
 ### Dependencies
 
-glfw and spdlog are submodules. **glm must become a submodule too**; the current `.gitignore` excludes `external/include/glm/*`, which breaks fresh clones.
+glfw, spdlog, glm, imgui and doctest are git submodules (ImGui and doctest pinned to release tags, not `master`). glad and other header-only libraries live under `external/include`. ImGui is built as a static library and linked PRIVATE to the engine. doctest is test-only.
+
+### Presets and CI
+
+`CMakePresets.json` has configure, build and test presets for x64 Debug and Release. Local builds and CI use the same presets. CI runs on GitHub Actions (Windows) for Debug and Release: configure, build, test.
 
 ---
 
 ## 9. Runtime frame/lifecycle (implemented)
 
 1. `Run`: init logging, construct `Application`.
-2. Create window and input; set the resize callback; set the viewport.
+2. Create window, input and renderer (needs the GL context), plus the debug UI layer if enabled; set the resize callback; set the viewport.
 3. `Game::OnStart`; finalize the input action map; deliver the first `OnResize`.
 4. Each frame: compute dt (clamped to `max_frame_time`), poll events, `Input::BeginFrame`.
 5. If minimized: drain input, sleep briefly, reset the clock, skip game and render.
 6. `OnUpdate(dt)`.
 7. Fixed-step loop: `OnFixedUpdate(step)` up to `max_fixed_steps_per_frame`; drop any remaining backlog.
-8. Clear, `OnRender`, swap, `Input::EndFrame`, update FPS.
-9. On exit: `OnShutdown`, destroy input then window, shut down logging.
+8. Renderer clears; `OnRender`; if the debug UI is enabled: ImGui begin, `OnDebugUI`, ImGui render; swap; `Input::EndFrame`; update FPS.
+9. On exit: `OnShutdown`, destroy debug UI layer, renderer, input, window in that order, then shut down logging.
 
-Lifecycle contract points still to define when scenes arrive: spawn/destroy during update, scene transitions, shutdown order of scene objects. Interpolation alpha is added to `FrameTime` only if movement looks jittery.
+Lifecycle contract points still to define when scenes arrive: spawn/destroy during update, scene transitions, shutdown order of scene objects. The interpolation alpha is added to `FrameTime` when it is scheduled (see the register).
 
 ---
 
-## 10. Input subsystem policy
+## 10. Subsystem policies
 
-Input is implemented as: backend (GLFW) → event queue → physical state → action resolver → per-frame `InputFrame` snapshot → `Input` facade. It is **feature-frozen**. Allowed work: bug fixes and wiring that the game actually needs.
+### Input (feature-frozen)
 
-Known limitations tracked in `STATUS.md`:
-- Input contexts are stubbed; the resolver ignores `active_contexts`. Wire them (bindings carry an optional context, invalid meaning "always active") only when a pause menu or ImGui capture needs them.
-- Action-level `pressed` can miss a same-frame tap; fix before jump buffering.
-- The first mouse move after start, focus regain or cursor-mode change produces a large delta; fix before mouse-look or drag.
+Backend (GLFW) → event queue → physical state → action resolver → per-frame `InputFrame` snapshot → `Input` facade. Allowed work: bug fixes and wiring that the game actually needs. Known limitations and their triggers are in `STATUS.md`:
+- Input contexts are stubbed; the resolver ignores `active_contexts`. Wire them (bindings carry an optional context, invalid meaning "always active") when a pause menu or ImGui capture needs them. A skipped test marks the gap.
+- The first mouse move after a cursor-mode change can produce a large delta; fix before mouse-look.
+
+### Rendering and interpolation
+
+The fixed step is 60 Hz and rendering uses current positions. On high-refresh displays this shows as quivering (observed at 120 Hz). The planned fix, **deferred**: add `alpha = accumulator / fixed_step` to `FrameTime`; the game keeps previous and current simulation state and interpolates in `OnRender`. Trigger: movement polish, a high-refresh playtest, or sprites making the jitter more visible.
+
+### Debug UI and platform coupling
+
+`Application` currently includes the GLFW window header, casts the window to `GLFW_Window` to get the native handle, and `ImGuiLayer` uses the GLFW and OpenGL3 ImGui backends. That is acceptable with one platform and one graphics API. **Deferred:** a platform-neutral debug UI backend. The likely shape follows the input backend pattern: the window (or a platform factory) creates a debug UI backend, and `Application` talks only to an interface. Trigger: a second window/platform backend (for example SDL), a second graphics backend, or `Application` needing to build without GLFW headers. Until then, do not add the abstraction.
 
 ---
 
@@ -354,12 +382,15 @@ Known limitations tracked in `STATUS.md`:
 ## 12. Testing and quality gates
 
 - Keep the reference game building and playable at each milestone.
-- Test pure logic (input state/resolver/queue, later collision and lifecycle) in a small test executable.
-- Build Debug and Release from a clean checkout (CI once M1b lands).
+- Pure logic (input queue, physical state, action resolver and map, collision, player movement) is tested in `engine_tests` using doctest, compiled directly from source with no GLFW, GL or DLL dependency. Internal headers are not made public for tests.
+- Expectations come from the code's real contracts and from `Tuning` values, not hard-coded numbers, so retuning does not break tests. Do not weaken an assertion just to get a green run.
+- Known gaps are kept visible with skipped tests (currently: context filtering).
+- Build and test Debug and Release locally and in CI before closing a milestone.
 - Keep warnings enabled; fix meaningful ones.
 - Test the packaged game from a clean directory before calling M5 done.
+- Code that needs a GL context (renderer, window, `Application`) is verified manually for now (resize, minimize, broken shader, shutdown); a headless GL test setup is deferred.
 
-A milestone is complete when the reference game uses the feature successfully and important behavior is tested.
+A milestone is complete when the reference game uses the feature successfully, important behavior is tested, and CI is green.
 
 ---
 
@@ -370,17 +401,24 @@ A milestone is complete when the reference game uses the feature successfully an
 | Product scope | 2D first; focused 2.5D later | Agreed |
 | Main priority | Playable games early; engine grows alongside | **Primary rule** |
 | Authoring workflow | C++ code-first; no mandatory editor | Agreed |
-| Debug UI | ImGui for tuning/inspection; introduced at M1b | Agreed |
 | Runtime | Engine owns loop and lifecycle (`Run` + `Application`) | **Implemented** |
 | Game interface | `Engine::Game` callbacks; no `GameInstance` yet | **Implemented** |
-| Gameplay structure | `Scene` first; `World`/`GameMode`/`GameInstance` deferred | Changed in 1.2 |
-| Entity model | Actor/Component vs handles vs ECS undecided; decide after M1b | Open |
+| Gameplay structure | `Scene` first; `World`/`GameMode`/`GameInstance` deferred | Agreed |
+| Entity model | Actor/Component vs handles vs ECS undecided; decide after M2a | Open |
 | Engine deployment | `engine` SHARED + game exe, for hot-reload potential | **Current decision** |
 | Shared vs static revisit | Reconsider at end of M3 if hot reload unused | Proposed |
-| CMake structure | One engine target, one game target | Agreed |
-| Renderer | Direct OpenGL `Renderer2D`; no RHI | Agreed |
-| Math library | glm, as a submodule | Pending (not yet added) |
+| CMake structure | One engine target, one game target, one test target | Agreed |
+| Renderer | Direct OpenGL batched `Renderer`, pimpl facade; no RHI | **Implemented** |
+| Coordinates and camera | Y-up world units, fixed vertical extent, aspect from framebuffer | **Implemented** |
+| Frame ownership | Engine owns clear/viewport/swap; game owns scene submission | **Implemented** |
+| Math library | glm, submodule, PUBLIC | **Implemented** |
+| Debug UI | Engine-owned ImGui; narrow `DebugUI` interface; ImGui private static dependency | **Implemented** |
+| Debug UI platform abstraction | Backend behind an interface, like input | Deferred (trigger: second platform or graphics backend) |
 | Input | Feature-frozen; wire contexts when needed | Agreed |
+| Interpolation | Alpha in `FrameTime`, game-side lerp | Deferred (known issue at 120 Hz) |
+| Collision | AABB in game code; promote on second user (M2a enemy) | Agreed |
+| Testing | doctest, separate `engine_tests`, pure logic only | **Implemented** |
+| CI | GitHub Actions, Windows, Debug and Release, via presets | **Implemented** |
 | First game | Small 2D platformer | Reference project |
 | Physics backend | Own AABB collision in game code first | Deferred |
 | Asset serialization / hot reload / plugins / editor | Not initial requirements | Deferred |
@@ -393,7 +431,7 @@ A milestone is complete when the reference game uses the feature successfully an
 1. Inspect the actual repository and build graph before changing code.
 2. Pick the smallest change that advances the current milestone.
 3. Update code, CMake, tests, `STATUS.md` and this document together when a decision changes.
-4. Mark decisions as agreed, proposed, or deferred.
+4. Mark decisions as agreed, proposed, or deferred, and give every deferral a trigger.
 5. Preserve a playable reference game during refactors.
 6. Prefer a small, tested working slice over a large unfinished subsystem.
 
@@ -401,11 +439,8 @@ A milestone is complete when the reference game uses the feature successfully an
 
 ## Immediate next steps
 
-1. Apply the small `Application::Run` fixes listed in `STATUS.md` (OnResize after OnStart, standard includes, backlog check, consistent shutdown rule).
-2. Add glm as a submodule; fix `.gitignore`.
-3. Implement `Renderer2D` (ortho camera, batched quads) and move viewport/clear into it.
-4. Build the player and platforms in game code with intent sampling and a fixed step.
-5. Add the ImGui tuning panel.
-6. Only then decide the entity model.
+1. M2a: larger level with camera follow, then pickup, hazard, goal and one patrolling enemy in game code.
+2. M2b: decide the entity model from what M2a made painful; promote collision into the engine.
+4. M3: sprites and an asset-path strategy; schedule the interpolation alpha.
 
 **Guiding principle:** the engine is successful when it helps us make games, not when every planned subsystem exists.
