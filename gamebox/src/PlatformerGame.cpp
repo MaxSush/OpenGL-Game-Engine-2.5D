@@ -102,6 +102,10 @@ void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
 		const auto& stats = App().GetRenderer().GetStats();
 		ui.Text("Draw calls: %u", static_cast<unsigned>(stats.draw_calls));
 		ui.Text("Quads: %u", static_cast<unsigned>(stats.quad_count));
+		
+		ui.Separator();
+		ui.Text("Player Pos: [%f, %f]", m_player.position.x, m_player.position.y);
+		ui.Text("Player vel: [%f, %f]", m_player.velocity.x, m_player.velocity.y);
 
 		ui.Separator();
 		if (ui.Button("Reset player"))

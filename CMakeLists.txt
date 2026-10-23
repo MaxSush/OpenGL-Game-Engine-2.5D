@@ -21,4 +21,9 @@ add_subdirectory("engine")
 
 if(PROJECT_IS_TOP_LEVEL)
     add_subdirectory(gamebox)
+
+	include(CTest)
+	if(BUILD_TESTING)
+		add_subdirectory(tests)
+	endif()
 endif()
