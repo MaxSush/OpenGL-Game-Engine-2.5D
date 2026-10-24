@@ -2,17 +2,48 @@
 
 #include <glm/glm.hpp>
 
-#include "Collision.h"
-
+#include <span>
+#include <string>
+#include <string_view>
 #include <vector>
+
+#include "Collision.h"
+#include "Enemy.h" 
+
+struct Pickup
+{
+	glm::vec2 position{ 0.0f };
+	bool collected = false;
+};
+
+struct Hazard
+{
+	AABB box;
+};
+
+struct Goal
+{
+	AABB box;
+};
+
+inline constexpr float kPickupHalf = 0.25f;
 
 struct Level
 {
 	std::vector<AABB> solids;
-	glm::vec2 spawn{ 0.0f, 0.0f };
-	float kill_y = -9.0f;
-	float world_bound = 12.0f;
+	std::vector<Pickup> pickups;
+	std::vector<Hazard> hazards;
+	std::vector<Goal> goals;
+	std::vector<Enemy> enemies;
+
+	glm::vec2 spawn_feet{ 0.0f };   // bottom-centre of the 'P' cell; the game adds the player's half height
+	glm::vec2 bounds_min{ 0.0f };
+	glm::vec2 bounds_max{ 0.0f };
+
+	float kill_y = -3.0f;
 	float view_height = 12.0f;
 };
 
-Level BuildLevel();
+std::span<const std::string_view> Level1Rows();
+// Row 0 is the TOP row. # solid, . empty, P player, C coin, ^ spike, G goal, E enemy.
+bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string& error);

@@ -82,28 +82,53 @@ namespace Engine
 			m_imgui_layer = std::make_unique<ImGuiLayer>(glfw_window->GetNativeHandle());
 		}
 
-		m_game.m_app = this;
 		m_window->SetResizeCallback([this](int w, int h) { OnFramebufferResize(w, h); });
+
+		m_game.m_app = this;
+		struct GameBinding
+		{
+			Game& game;
+			~GameBinding()
+			{
+				game.m_app = nullptr;
+			}
+		} binding{ m_game };
 
 		const Dimension fb = m_window->GetFramebufferSize();
 		m_renderer->SetViewport(fb.width, fb.height);
 
-		if (!m_game.OnStart())
+		bool started = false;
+		try
+		{
+			started = m_game.OnStart();
+		}
+		catch (const std::exception& e)
+		{
+			LOG_ERROR("Application::Run => Game::OnStart threw: {}", e.what());
+		}
+		catch (...)
+		{
+			LOG_ERROR("Application::Run => Game::OnStart threw an unknown exception");
+		}
+
+		if (!started)
 		{
 			LOG_ERROR("Application::Run => Game::OnStart returned false");
-			m_game.m_app = nullptr;
 			return 1;
 		}
+
+		auto shutdown_game = [this]
+			{
+				m_game.OnShutdown();
+				//m_scene->Clear();
+			};
 
 		if (!m_input->FinalizeActionSetup())
 		{
 			LOG_ERROR("Application::Run => FinalizeActionSetup failed (did the game call it already?)");
-			m_game.OnShutdown();
-			m_game.m_app = nullptr;
+			shutdown_game();
 			return 1;
 		}
-
-		m_renderer->SetViewport(fb.width, fb.height);
 
 		using Clock = std::chrono::steady_clock;
 		auto last = Clock::now();
@@ -111,6 +136,10 @@ namespace Engine
 
 		try
 		{
+
+			const Dimension size = m_window->GetFramebufferSize();
+			OnFramebufferResize(size.width, size.height);
+
 			while (!m_window->ShouldClose())
 			{
 				const auto now = Clock::now();
@@ -165,13 +194,11 @@ namespace Engine
 		}
 		catch (...)
 		{
-			m_game.OnShutdown();
-			m_game.m_app = nullptr;
+			shutdown_game();
 			throw;
 		}
 
-		m_game.OnShutdown();
-		m_game.m_app = nullptr;
+		shutdown_game();
 		return 0;
 	}
 

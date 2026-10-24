@@ -2,8 +2,11 @@ add_executable(gamebox
     "src/main.cpp"
     "src/PlatformerGame.cpp"
     "src/gameplay/Player.cpp"
+    "src/gameplay/Enemy.cpp"
     "src/gameplay/Collision.cpp"
     "src/gameplay/Level.cpp"
+    "src/gameplay/CameraFollow.cpp"
+    "src/gameplay/Rules.cpp"
 )
 
 target_link_libraries(gamebox 

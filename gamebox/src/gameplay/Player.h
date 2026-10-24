@@ -16,10 +16,7 @@ struct PlayerIntent
 
 struct Player
 {
-	glm::vec2 position{ 0.0f };
-	glm::vec2 velocity{ 0.0f };
-	glm::vec2 half_size{ 0.4f, 0.5f };
-	bool grounded = false;
+	Body body{ { 0.0f, 0.0f }, { 0.0f, 0.0f }, { 0.4f, 0.5f }, false };
 	float coyote_timer = 0.0f;
 	float jump_buffer_timer = 0.0f;
 };
