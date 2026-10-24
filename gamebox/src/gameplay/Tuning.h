@@ -9,6 +9,7 @@ struct Tuning
 	float accel = 60.0f;
 	float friction = 50.0f;
 	float max_fall_speed = -25.0f;
+	float enemy_speed = 2.0f;
 	float coyote_time = 0.10f;
 	float jump_buffer_time = 0.10f;
 };

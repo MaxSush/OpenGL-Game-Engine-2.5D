@@ -1,31 +1,128 @@
 #include "Level.h"
 
-Level BuildLevel()
+std::span<const std::string_view> Level1Rows()
 {
-	Level level;
+	static constexpr std::string_view rows[] = {
+		"########################################################",   //  0
+		"#......................................................#",   //  1
+		"#......................................................#",   //  2
+		"#......................................................#",   //  3
+		"#......................................................#",   //  4
+		"#......................................................#",   //  5
+		"#...................................................CG.#",   //  6
+		"#...................................................####",   //  7
+		"#................................................C.....#",   //  8
+		"#...............................................###....#",   //  9
+		"#............................................C.........#",   // 10
+		"#...........................................###........#",   // 11
+		"#..........CCC.....C............C....C.................#",   // 12
+		"#.P.........^...........#.....E..........##............#",   // 13
+		"##################...###############...#################",   // 14
+		"##################...###############...#################",   // 15
+	};
+	return rows;
+}
 
-	auto add = [&](float cx, float cy, float w, float h)
+bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string& error)
+{
+	out = Level{};
+	error.clear();
+	if (rows.empty())
+	{
+		error = "Level has no rows";
+		return false;
+	}
+
+	const int width = static_cast<int>(rows[0].size());
+	const int height = static_cast<int>(rows.size());
+	int spawn_count = 0;
+
+	for (int row = 0; row < height; ++row)
+	{
+		if (static_cast<int>(rows[row].size()) != width)
 		{
-			level.solids.push_back({ {cx,cy}, {w * 0.5f, h * 0.5f} });
-		};
+			error = "row " + std::to_string(row) + " is " + std::to_string(rows[row].size()) + " wide, expected " + std::to_string(width);
+			return false;
+		}
+		
+		const float bottom = static_cast<float>(height - 1 - row);
+		int run_start = -1;
 
-	// Floor: top at y = -5.0
-	add(0.0f, -5.5f, 20.0f, 1.0f);
+		for (int col = 0; col <= width; ++col)
+		{
+			const char ch = (col < width) ? rows[row][col] : '.';  // one past the end flushes the last run
 
-	// Side walls (inner edges at x = +/-10)
-	add(-10.5f, 0.0f, 1.0f, 12.0f);
-	add(10.5f, 0.0f, 1.0f, 12.0f);
+			if (ch == '#')
+			{
+				if (run_start < 0)
+				{
+					run_start = col;
+				}
+				continue;
+			}
+			if (run_start >= 0)
+			{
+				const float w = static_cast<float>(col - run_start);
+				out.solids.push_back({ { run_start + w * 0.5f, bottom + 0.5f }, { w * 0.5f, 0.5f } });
+				run_start = -1;
+			}
 
-	// A low step on the floor (top at y = -4.0)
-	add(3.0f, -4.5f, 1.5f, 1.0f);
+			if (col == width)
+			{
+				break;
+			}
 
-	// Platforms, each about 2.0 units above the previous top. Full jump height is 2.4.
-	add(-5.0f, -3.25f, 4.0f, 0.5f);   // top -3.0
-	add(0.0f, -1.25f, 4.0f, 0.5f);    // top -1.0
-	add(5.0f, 0.75f, 4.0f, 0.5f);     // top  1.0
-	add(0.0f, 2.75f, 4.0f, 0.5f);     // top  3.0
+			const float cx = static_cast<float>(col) + 0.5f;
+			switch(ch)
+			{
+			case '.': 
+			case ' ': 
+				break;
+			case 'P': 
+				out.spawn_feet = { cx, bottom }; 
+				++spawn_count; 
+				break;
+			case 'C': 
+				out.pickups.push_back({ { cx, bottom + 0.5f }, false }); 
+				break;
+			case '^': 
+				out.hazards.push_back({ { { cx, bottom + 0.25f }, { 0.4f, 0.25f } } }); 
+				break;
+			case 'G': 
+				out.goals.push_back({ { { cx, bottom + 0.5f }, { 0.5f, 0.5f } } }); 
+				break;
+			case 'E':
+			{
+				Enemy e;
+				e.body.position = { cx, bottom + e.body.half_size.y };
+				out.enemies.push_back(e);
+				break;
+			}
+			default:
+				error = std::string("unknown character '") + ch + "' at row " + std::to_string(row) +
+					", column " + std::to_string(col);
+				return false;
 
-	// Standing on the floor: y = floor top (-5.0) + player half height (0.5)
-	level.spawn = { -8.0f, -4.5f };
-	return level;
+			}
+		}
+
+	}
+
+	if (spawn_count != 1)
+	{
+		error = "expected exactly one 'P', found " + std::to_string(spawn_count);
+		return false;
+	}
+
+	if (out.goals.empty())
+	{
+		error = "level has no goal 'G'";
+		return false;
+	}
+
+	out.bounds_min = { 0.0f, 0.0f };
+	out.bounds_max = { static_cast<float>(width), static_cast<float>(height) };
+	out.kill_y = out.bounds_min.y - 3.0f;
+
+	return true;
 }

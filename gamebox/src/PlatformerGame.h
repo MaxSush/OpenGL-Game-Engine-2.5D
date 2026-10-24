@@ -5,9 +5,11 @@
 #include <engine/input/input.h>
 #include <engine/renderer/camera.h>
 
+#include "gameplay/CameraFollow.h"
 #include "gameplay/Player.h"
 #include "gameplay/Tuning.h"
 #include "gameplay/Level.h"
+#include "gameplay/Rules.h"
 
 class PlatformerGame final : public Engine::Game
 {
@@ -29,9 +31,11 @@ private:
 	Player m_player{};
 	Level m_level{};
 	Tuning m_tuning{};
+	Progress m_progress{};
 
 	Engine::Camera m_camera;
+	CameraFollowParams m_follow{};
 
 private:
-	void ResetPlayer();
+	bool LoadLevel();
 };

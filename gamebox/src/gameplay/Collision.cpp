@@ -1,51 +1,63 @@
 #include "Collision.h"
 
-#include "Player.h"
-
 // Moves the player by velocity * dt, one axis at a time, resolving against solids.
 // Sets p.grounded if the player landed on something this step.
-void MoveAndCollide(Player& p, const std::vector<AABB>& solids, float dt)
+MoveResult MoveAndCollide(Body& b, const std::vector<AABB>& solids, float dt)
 {
-	p.grounded = false;
+	MoveResult result;
+	b.grounded = false;
 
 	// X axis
-	p.position.x += p.velocity.x * dt;
+	const float vx = b.velocity.x;
+	b.position.x += vx * dt;
 	for (const AABB& s : solids)
 	{
-		if (!Overlaps({ p.position, p.half_size }, s))
+		if (!Overlaps(BoundsOf(b), s))
 		{
 			continue;
 		}
 
-		if (p.velocity.x > 0.0f)
+		if (vx > 0.0f)
 		{
-			p.position.x = s.center.x - s.half.x - p.half_size.x;   // hit the left side of the solid
+			b.position.x = s.center.x - s.half.x - b.half_size.x;   // hit the left side of the solid
+			result.hit_x = true;
 		}
-		else if (p.velocity.x < 0.0f)
+		else if (vx < 0.0f)
 		{
-			p.position.x = s.center.x + s.half.x + p.half_size.x;   // hit the right side of the solid
+			b.position.x = s.center.x + s.half.x + b.half_size.x;   // hit the right side of the solid
+			result.hit_x = true;
 		}
-		p.velocity.x = 0.0f;
+		if (result.hit_x)
+		{
+			b.velocity.x = 0.0f;
+		}
 	}
 
 	// Y axis
-	p.position.y += p.velocity.y * dt;
+	const float vy = b.velocity.y;
+	b.position.y += vy * dt;
 	for (const AABB& s : solids)
 	{
-		if (!Overlaps({ p.position, p.half_size }, s))
+		if (!Overlaps(BoundsOf(b), s))
 		{
 			continue;
 		}
 
-		if (p.velocity.y < 0.0f)
+		if (vy < 0.0f)
 		{
-			p.position.y = s.center.y + s.half.y + p.half_size.y;  // landed on top
-			p.grounded = true;
+			b.position.y = s.center.y + s.half.y + b.half_size.y;  // landed on top
+			b.grounded = true;
+			result.hit_y = true;
 		}
-		else if (p.velocity.y > 0.0f)
+		else if (vy > 0.0f)
 		{
-			p.position.y = s.center.y - s.half.y - p.half_size.y;  // bumped head
+			b.position.y = s.center.y - s.half.y - b.half_size.y;  // bumped head
+			result.hit_y = true;
 		}
-		p.velocity.y = 0.0f;
+		if (result.hit_y)
+		{
+			b.velocity.y = 0.0f;
+		}
 	}
+	return result;
 }
