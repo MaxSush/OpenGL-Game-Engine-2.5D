@@ -14,6 +14,7 @@ set(SPDLOG_BUILD_PIC ON CACHE BOOL "" FORCE)
 set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE) 
 set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE) 
 set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+set(SPDLOG_COMPILED_LIB ON CACHE BOOL "" FORCE)
 add_subdirectory(spdlog)
 
 #glm
@@ -24,6 +25,10 @@ add_subdirectory(glm)
 
 # imgui
 add_subdirectory(imgui)
+
+# EnTT (header-only ECS)
+set(ENTT_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+add_subdirectory(entt)
 
 # Expose header -only library 
 add_library(header-only-libraries INTERFACE)

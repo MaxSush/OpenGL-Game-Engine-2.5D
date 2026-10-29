@@ -71,6 +71,7 @@ namespace Engine
 		m_window = Window::Create(m_config.window);
 		m_input = std::make_unique<Input>(*m_window);
 		m_renderer = std::unique_ptr<Renderer>(new Renderer());
+		m_world = std::make_unique<World>();
 
 		if (m_config.enable_debug_ui)
 		{
@@ -120,7 +121,7 @@ namespace Engine
 		auto shutdown_game = [this]
 			{
 				m_game.OnShutdown();
-				//m_scene->Clear();
+				m_world->Clear();
 			};
 
 		if (!m_input->FinalizeActionSetup())
@@ -139,6 +140,8 @@ namespace Engine
 
 			const Dimension size = m_window->GetFramebufferSize();
 			OnFramebufferResize(size.width, size.height);
+
+			m_world->Flush(); // commands deferred in OnStart take effect before frame 1
 
 			while (!m_window->ShouldClose())
 			{
@@ -163,12 +166,14 @@ namespace Engine
 				++m_time.frame;
 
 				m_game.OnUpdate(dt);
+				m_world->Flush();
 
 				accumulator += dt;
 				int steps = 0;
 				while (accumulator >= m_config.fixed_step && steps < m_config.max_fixed_steps_per_frame)
 				{
 					m_game.OnFixedUpdate(m_config.fixed_step);
+					m_world->Flush();
 					accumulator -= m_config.fixed_step;
 					++steps;
 				}

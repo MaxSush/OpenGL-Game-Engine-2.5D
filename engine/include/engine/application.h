@@ -3,6 +3,7 @@
 #include <engine/core/debug/debug_ui.h>
 #include <engine/engine_api.h>
 #include <engine/platform/platform_window.h>
+#include <engine/gameplay/world.h>
 #include <engine/core/time.h>
 
 #include <memory>
@@ -41,6 +42,7 @@ namespace Engine
 		Window& GetWindow() { return *m_window; }
 		Input& GetInput() { return *m_input; }
 		Renderer& GetRenderer() { return *m_renderer; }
+		World& GetWorld() { return *m_world; }
 		const FrameTime& GetTime() const { return m_time; }
 
 	private:
@@ -53,6 +55,7 @@ namespace Engine
 		std::unique_ptr<Input> m_input;
 		std::unique_ptr<Renderer> m_renderer;
 		std::unique_ptr<ImGuiLayer> m_imgui_layer;
+		std::unique_ptr<World> m_world;
 		DebugUI m_debug_ui;
 		FrameTime m_time;
 

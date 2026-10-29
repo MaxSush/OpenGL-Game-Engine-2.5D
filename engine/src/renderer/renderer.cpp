@@ -177,7 +177,7 @@ namespace Engine
 
 		if (m_impl->in_scene)
 		{
-			LOG_WARN("Renderer2D: previous scene was not ended (missing EndScene)");
+			LOG_WARN("Renderer::BeginFrame previous scene was not ended (missing EndScene)");
 			m_impl->in_scene = false;
 			m_impl->quad_count = 0;
 		}

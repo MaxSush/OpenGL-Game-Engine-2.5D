@@ -3,6 +3,7 @@ set(platform "${CMAKE_CURRENT_SOURCE_DIR}/src/platform" )
 set(input "${CMAKE_CURRENT_SOURCE_DIR}/src/input" )
 set(runtime "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime" )
 set(renderer "${CMAKE_CURRENT_SOURCE_DIR}/src/renderer" )
+set(gameplay "${CMAKE_CURRENT_SOURCE_DIR}/src/gameplay" )
 
 set(core_sources
 	"${core}/logger/log.cpp"
@@ -13,6 +14,10 @@ set(runtime_sources
 )
 set(renderer_sources
 	"${renderer}/renderer.cpp"
+)
+set(gameplay_sources
+	"${gameplay}/scene.cpp"
+	"${gameplay}/world.cpp"
 )
 set(platform_sources
 	"${platform}/glfw/glfw_window.cpp"
@@ -35,6 +40,7 @@ add_library(engine SHARED
     ${input_sources}
     ${runtime_sources}
     ${renderer_sources}
+    ${gameplay_sources}
 )
 add_library(Engine::Engine ALIAS engine)
 
@@ -49,6 +55,9 @@ target_compile_features(engine PUBLIC cxx_std_20)
 target_compile_definitions(engine 
     PRIVATE 
         ENGINE_BUILD
+        ENTT_API_EXPORT
+    INTERFACE
+        ENTT_API_IMPORT
     PUBLIC
         SPDLOG_ACTIVE_LEVEL=$<IF:$<CONFIG:Debug>,SPDLOG_LEVEL_TRACE,SPDLOG_LEVEL_INFO>
 )
@@ -66,6 +75,7 @@ target_link_libraries(engine
         PUBLIC 
             spdlog::spdlog 
             glm::glm
+            EnTT::EnTT
         PRIVATE 
             glfw 
             header-only-libraries
