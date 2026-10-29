@@ -11,7 +11,7 @@ namespace
 	{
 		if (hi - lo <= 2.0f * half_view)
 		{
-			return 0.5f * (lo + hi);
+			return 0.5f * (lo + hi);   // level smaller than the view on this axis: centre it
 		}
 		return std::clamp(v, lo + half_view, hi - half_view);
 	}
@@ -30,7 +30,7 @@ namespace
 		if (d < -half_zone) return target + half_zone;
 		return cam;
 	}
-}	
+}
 
 void SnapCamera(Engine::Camera& cam, glm::vec2 target, glm::vec2 lo, glm::vec2 hi)
 {
@@ -42,7 +42,7 @@ void UpdateCameraFollow(Engine::Camera& cam, glm::vec2 target, glm::vec2 lo, glm
 {
 	const glm::vec2 goal{
 		DeadZoneGoal(cam.position.x, target.x, params.dead_zone_half.x),
-		DeadZoneGoal(cam.position.y, target.y, params.dead_zone_half.y) 
+		DeadZoneGoal(cam.position.y, target.y, params.dead_zone_half.y)
 	};
 
 	const float k = 1.0f - std::exp(-params.smoothing * dt);   // frame-rate independent

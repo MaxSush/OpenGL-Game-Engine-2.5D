@@ -9,8 +9,8 @@ namespace Engine
 
 struct CameraFollowParams
 {
-	glm::vec2 dead_zone_half{ 1.5f,1.0f };
-	float smoothing = 8.0f;
+	glm::vec2 dead_zone_half{ 1.5f, 1.0f };   
+	float smoothing = 8.0f;                  
 };
 
 // Puts the camera on the target immediately (level load, restart), clamped to the level.

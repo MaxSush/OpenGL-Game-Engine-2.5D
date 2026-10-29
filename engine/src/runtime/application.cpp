@@ -3,6 +3,7 @@
 #include <engine/core/logger/log.h>
 #include <engine/input/input.h>
 #include <engine/renderer/renderer.h>
+#include <engine/gameplay/world.h>
 
 #include <core/debug/imgui_layer.h>
 #include <platform/glfw/glfw_window.h>
@@ -11,6 +12,7 @@
 #include <chrono>
 #include <cstdio>
 #include <exception>
+#include <stdexcept>
 #include <thread>
 
 namespace Engine
@@ -99,22 +101,28 @@ namespace Engine
 		m_renderer->SetViewport(fb.width, fb.height);
 
 		bool started = false;
+		bool threw = false;
 		try
 		{
 			started = m_game.OnStart();
 		}
 		catch (const std::exception& e)
 		{
+			threw = true;
 			LOG_ERROR("Application::Run => Game::OnStart threw: {}", e.what());
 		}
 		catch (...)
 		{
+			threw = true;
 			LOG_ERROR("Application::Run => Game::OnStart threw an unknown exception");
 		}
 
 		if (!started)
 		{
-			LOG_ERROR("Application::Run => Game::OnStart returned false");
+			if (!threw)
+			{
+				LOG_ERROR("Application::Run => Game::OnStart returned false");
+			}
 			return 1;
 		}
 

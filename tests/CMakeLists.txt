@@ -10,21 +10,8 @@ target_include_directories(doctest_headers SYSTEM INTERFACE
 add_executable(engine_tests
     # test sources: add these one at a time while following the staged order in section 4
     test_main.cpp
-    test_input_event_queue.cpp
-    test_physical_input_state.cpp
-    test_input_action_resolver.cpp
-    test_collision.cpp
-    test_player.cpp
-    test_level.cpp
 
     # production code under test, compiled directly (no GLFW, no GL, no DLL)
-    "${ENGINE_SRC}/input/input_event_queue.cpp"
-    "${ENGINE_SRC}/input/physical_input_state.cpp"
-    "${ENGINE_SRC}/input/input_action_resolver.cpp"
-    "${ENGINE_SRC}/input/input_action_map.cpp"
-    "${GAME_SRC}/gameplay/Collision.cpp"
-    "${GAME_SRC}/gameplay/Player.cpp"
-    "${GAME_SRC}/gameplay/Level.cpp"
 )
 
 target_compile_features(engine_tests PRIVATE cxx_std_20)

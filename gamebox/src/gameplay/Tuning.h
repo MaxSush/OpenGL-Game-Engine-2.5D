@@ -13,3 +13,10 @@ struct Tuning
 	float coyote_time = 0.10f;
 	float jump_buffer_time = 0.10f;
 };
+
+struct PlayerIntent
+{
+	float move_x = 0.0f;
+	bool jump_held = false;
+	bool jump_pressed = false;
+};

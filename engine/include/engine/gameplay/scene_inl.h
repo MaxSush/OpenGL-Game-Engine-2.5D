@@ -2,6 +2,8 @@
 
 #include <entt/entity/registry.hpp>
 
+// Included at the end of scene.h. The only public header that pulls in the EnTT registry.
+
 namespace Engine
 {
 	namespace Detail
@@ -46,11 +48,11 @@ namespace Engine
 		entt::entity id{};
 		if (!scene || !scene->Resolve(*this, id))
 		{
-			Detail::FailFast("Entity::AddOrReplaceComponent => AddComponent on an invalid entity");
+			Detail::FailFast("Entity::AddOrReplaceComponent => AddOrReplaceComponent on an invalid entity");
 		}
 
 		entt::registry& reg = scene->GetRegistry();
-		if (reg.all_of<T>(id))
+		if (!reg.all_of<T>(id))
 		{
 			scene->AssertStructuralChangeAllowed("Entity::AddOrReplace");
 			// replacing a value is fine mid-iteration
@@ -90,7 +92,7 @@ namespace Engine
 	}
 
 	template<typename T>
-	inline bool Entity::RemoveComponent()
+	inline bool Entity::RemoveComponent() const
 	{
 		Detail::CheckComponent<T>();
 
@@ -108,7 +110,7 @@ namespace Engine
 		}
 		scene->AssertStructuralChangeAllowed("Entity::RemoveComponent");
 		reg.remove<T>(id);
-		return false;
+		return true;
 	}
 
 	template<typename ... Ts, typename Func>
@@ -125,7 +127,7 @@ namespace Engine
 				scene.BeginIteration();
 			}
 
-			~Scene()
+			~Scope()
 			{
 				scene.EndIteration();
 			}

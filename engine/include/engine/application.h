@@ -3,7 +3,6 @@
 #include <engine/core/debug/debug_ui.h>
 #include <engine/engine_api.h>
 #include <engine/platform/platform_window.h>
-#include <engine/gameplay/world.h>
 #include <engine/core/time.h>
 
 #include <memory>
@@ -14,6 +13,7 @@ namespace Engine
 	class Game;
 	class Input;
 	class Renderer;
+	class World;
 	class ImGuiLayer;
 
 	struct AppConfig

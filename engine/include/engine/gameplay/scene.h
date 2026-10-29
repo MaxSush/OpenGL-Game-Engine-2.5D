@@ -1,6 +1,7 @@
 #pragma once
 
-#include "entity.h"
+#include <engine/engine_api.h>
+#include <engine/gameplay/entity.h>
 
 #include <entt/fwd.hpp>
 
@@ -11,6 +12,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 namespace Engine
 {

@@ -37,7 +37,7 @@ namespace Engine
 		bool HasComponent() const;
 
 		template<typename T>
-		bool RemoveComponent();
+		bool RemoveComponent() const;
 
 		void Destroy() const;
 

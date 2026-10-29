@@ -55,9 +55,6 @@ target_compile_features(engine PUBLIC cxx_std_20)
 target_compile_definitions(engine 
     PRIVATE 
         ENGINE_BUILD
-        ENTT_API_EXPORT
-    INTERFACE
-        ENTT_API_IMPORT
     PUBLIC
         SPDLOG_ACTIVE_LEVEL=$<IF:$<CONFIG:Debug>,SPDLOG_LEVEL_TRACE,SPDLOG_LEVEL_INFO>
 )

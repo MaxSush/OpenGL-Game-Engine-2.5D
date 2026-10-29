@@ -1,15 +1,20 @@
 #pragma once
-#include <engine/application.h>
+
 #include <engine/game.h>
-#include <engine/core/logger/log.h>
-#include <engine/input/input.h>
+#include <engine/gameplay/entity.h>
+#include <engine/input/input_types.h>
 #include <engine/renderer/camera.h>
 
 #include "gameplay/CameraFollow.h"
-#include "gameplay/Player.h"
-#include "gameplay/Tuning.h"
 #include "gameplay/Level.h"
-#include "gameplay/Rules.h"
+#include "gameplay/Progress.h"
+#include "gameplay/Tuning.h"
+
+namespace Engine
+{
+	class DebugUI;
+	class Scene;
+}
 
 class PlatformerGame final : public Engine::Game
 {
@@ -27,15 +32,19 @@ private:
 	Engine::InputActionId m_move_x{};
 	Engine::InputActionId m_jump{};
 
-	PlayerIntent m_intent{};
-	Player m_player{};
+	Engine::Entity m_player;
+
 	Level m_level{};
 	Tuning m_tuning{};
 	Progress m_progress{};
+	PlayerIntent m_intent{};
 
 	Engine::Camera m_camera;
 	CameraFollowParams m_follow{};
 
+	size_t m_coins_total = 0;
+
 private:
 	bool LoadLevel();
+	Engine::Scene& ActiveScene();
 };
