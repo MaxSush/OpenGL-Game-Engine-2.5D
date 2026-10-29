@@ -1,6 +1,8 @@
 #include "PlatformerGame.h"
 
 #include <engine/renderer/renderer.h>
+#include "gameplay/Systems.h"
+#include "gameplay/Components.h"
 
 void PlatformerGame::OnResize(int width, int height)
 {
@@ -30,7 +32,9 @@ bool PlatformerGame::OnStart()
 	const Engine::Dimension fb = App().GetWindow().GetFramebufferSize();
 	m_camera.SetViewportSize(fb.width, fb.height);
 
-	SnapCamera(m_camera, m_player.body.position, m_level.bounds_min, m_level.bounds_max);
+	Engine::World& world = App().GetWorld();
+	world.CreateScene("MainLevel");
+	world.SetActiveScene("MainLevel");
 
 	LOG_INFO("Game started");
 	return LoadLevel();
@@ -61,7 +65,7 @@ void PlatformerGame::OnUpdate(float dt)
 		}
 	}
 
-	UpdateCameraFollow(m_camera, m_player.body.position, m_level.bounds_min, m_level.bounds_max, m_follow, dt);
+	StepCameraFollow(ActiveScene(), m_level.bounds_min, m_level.bounds_max, dt);
 }
 
 void PlatformerGame::OnFixedUpdate(float step)
@@ -71,13 +75,11 @@ void PlatformerGame::OnFixedUpdate(float step)
 		return;
 	}
 
-	StepPlayer(m_player, m_intent, m_tuning, m_level.solids, step);
-	for (Enemy& e : m_level.enemies)
-	{
-		StepEnemy(e, m_tuning, m_level.solids, step);
-	}
+	Engine::Scene& scene = ActiveScene();
+	StepPlayers(scene, m_intent, m_tuning, m_level.solids, step);
+	StepEnemies(scene, m_tuning, m_level.solids, step);
 
-	ResolveInteractions(m_player, m_level, m_progress);
+	ResolveInteractions(ActiveScene(), m_level, m_progress);
 }
 
 void PlatformerGame::OnRender()
@@ -85,35 +87,34 @@ void PlatformerGame::OnRender()
 	auto& r = App().GetRenderer();
 	r.BeginScene(m_camera);
 
-	for (const AABB& s : m_level.solids)
+	Engine::Scene& scene = ActiveScene();
+
+	for (const Solid& s : m_level.solids)
 	{
-		r.DrawQuad(s.center, s.half * 2.0f, { 0.35f, 0.35f, 0.40f, 1.0f });
+		r.DrawQuad(s.b.position, s.b.half_size * 2.0f, { 0.35f, 0.35f, 0.40f, 1.0f });
 	}
 	
-	for (const Hazard& h : m_level.hazards)
-	{
-		r.DrawQuad(h.box.center, h.box.half * 2.0f, { 1.0f, 0.42f, 0.05f, 1.0f });
-	}
+	scene.Each<Hazard>([&](Engine::Entity, Hazard& h)
+		{
+			r.DrawQuad(h.b.position, h.b.half_size * 2.0f, { 1.0f, 0.42f, 0.05f, 1.0f });
+		});
 
-	for (const Goal& g : m_level.goals)
-	{
-		r.DrawQuad(g.box.center, g.box.half * 2.0f, { 0.16f, 0.75f, 0.44f, 1.0f });
-	}
+	scene.Each<Goal>([&](Engine::Entity, Goal& g)
+		{
+			r.DrawQuad(g.b.position, g.b.half_size * 2.0f, { 0.16f, 0.75f, 0.44f, 1.0f });
+		});
 
-	for (const Enemy& e : m_level.enemies)
-	{
-		r.DrawQuad(e.body.position, e.body.half_size * 2.0f, { 0.44f, 0.08f, 0.69f, 1.0f });
-	}
+	scene.Each<Enemy>([&](Engine::Entity, Enemy& e)
+		{
+			r.DrawQuad(e.transform.position, e.transform.half_size * 2.0f, { 0.44f, 0.08f, 0.69f, 1.0f });
+		});
 
-	for (const Pickup& p : m_level.pickups)
-	{
-		if (!p.collected)
+	scene.Each<Pickup>([&](Engine::Entity, Pickup& p)
 		{
 			r.DrawQuad(p.position, glm::vec2{ kPickupHalf * 2.0f }, { 0.85f, 0.65f, 0.13f, 1.0f });
-		}
-	}
+		});
 
-	r.DrawQuad(m_player.body.position, m_player.body.half_size * 2.0f, { 0.0f, 0.81f, 0.82f,1.0f });
+	r.DrawQuad(m_player.GetComponent<Player>().transform.position, m_player.GetComponent<Player>().transform.half_size * 2.0f, {0.0f, 0.81f, 0.82f,1.0f});
 	
 	if (m_progress.state != GameState::PLAYING)
 	{
@@ -127,6 +128,7 @@ void PlatformerGame::OnRender()
 
 void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
 {
+	TransformComponent t = m_player.GetComponent<Player>().transform;
 	if (ui.Begin("Tuning"))
 	{
 		ui.SliderFloat("Gravity", m_tuning.gravity, -80.0f, -1.0f);
@@ -148,8 +150,8 @@ void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
 		ui.Text("Quads: %u", static_cast<unsigned>(stats.quad_count));
 		
 		ui.Separator();
-		ui.Text("Player Pos: [%f, %f]", m_player.body.position.x, m_player.body.position.y);
-		ui.Text("Player vel: [%f, %f]", m_player.body.velocity.x, m_player.body.velocity.y);
+		ui.Text("Player Pos: [%f, %f]", t.position.x, t.position.y);
+		ui.Text("Player vel: [%f, %f]", t.velocity.x, t.velocity.y);
 		ui.Text("Camera: [%.2f, %.2f]", m_camera.position.x, m_camera.position.y);
 
 
@@ -164,7 +166,7 @@ void PlatformerGame::OnDebugUI(Engine::DebugUI& ui)
 	if (ui.Begin("Stats"))
 	{
 		ui.Text("State: %s (%s)", ToString(m_progress.state), ToString(m_progress.cause));
-		ui.Text("Coins: %d / %d", m_progress.coins, static_cast<int>(m_level.pickups.size()));
+		ui.Text("Coins: %d / %d", m_progress.coins, static_cast<int>(m_coins_total));
 	}
 	ui.End();
 }
@@ -184,13 +186,51 @@ bool PlatformerGame::LoadLevel()
 		return false;
 	}
 
-	m_level = std::move(fresh);
+	Engine::Scene& scene = ActiveScene();
+	scene.Clear();
+
+	m_player = scene.CreateEntity("Player");
+	Player p;
 	m_intent = PlayerIntent{};
-	m_player = Player{};
-	m_player.body.position = { m_level.spawn_feet.x, m_level.spawn_feet.y + m_player.body.half_size.y };
+	p.transform.position = { fresh.spawn_feet.x, fresh.spawn_feet.y + p.transform.half_size.y };
+	m_player.AddComponent<Player>(p);
+	m_player.AddComponent<CameraFollowComponent>(m_camera);
+
 	m_progress = Progress{};
 
 	m_camera.vertical_size = m_level.view_height;
-	SnapCamera(m_camera, m_player.body.position, m_level.bounds_min, m_level.bounds_max);
+	
+	SnapCamera(m_camera, p.transform.position, m_level.bounds_min, m_level.bounds_max);
+
+	for (const Pickup& c : fresh.pickups)
+	{
+		scene.CreateEntity("Coin").AddComponent<Pickup>(c);
+	}
+	for (const Hazard& h : fresh.hazards)
+	{
+		scene.CreateEntity("Hazard").AddComponent<Hazard>(h);
+	}
+	for (const Goal& g : fresh.goals)
+	{
+		scene.CreateEntity("Goals").AddComponent<Goal>(g);
+	}
+	for (const Enemy& e : fresh.enemies)
+	{
+		scene.CreateEntity("Enemy").AddComponent<Enemy>(e);
+	}
+
+	m_coins_total = fresh.pickups.size();
+
+	fresh.pickups.clear();
+	fresh.hazards.clear();
+	fresh.goals.clear();
+	fresh.enemies.clear();
+
+	m_level = std::move(fresh);
 	return true;
+}
+
+Engine::Scene& PlatformerGame::ActiveScene()
+{
+	return App().GetWorld().GetActiveScene();
 }

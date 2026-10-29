@@ -7,30 +7,14 @@
 #include <string_view>
 #include <vector>
 
-#include "Collision.h"
-#include "Enemy.h" 
+#include "GameObjects.h"
 
-struct Pickup
-{
-	glm::vec2 position{ 0.0f };
-	bool collected = false;
-};
-
-struct Hazard
-{
-	AABB box;
-};
-
-struct Goal
-{
-	AABB box;
-};
 
 inline constexpr float kPickupHalf = 0.25f;
 
 struct Level
 {
-	std::vector<AABB> solids;
+	std::vector<Solid> solids;
 	std::vector<Pickup> pickups;
 	std::vector<Hazard> hazards;
 	std::vector<Goal> goals;

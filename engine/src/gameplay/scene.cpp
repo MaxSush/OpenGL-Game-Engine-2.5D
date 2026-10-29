@@ -1,9 +1,8 @@
 #include <engine/gameplay/scene.h>
 
-#include <engine/core/logger/log.h>
+#include <engine/gameplay/component.h>
 
-#include <cassert>
-#include <vector>
+#include <engine/core/logger/log.h>
 
 namespace Engine
 {
@@ -104,7 +103,14 @@ namespace Engine
 		slot.alive = true;
 		slot.entt_handle = id;
 		m_impl->alive++;
-		return Entity(m_scene_id, entity_id, slot.generation);
+
+		Entity e = Entity(m_scene_id, entity_id, slot.generation);
+		if (name.empty())
+		{
+			name = "Entity_" + std::to_string(e.m_entity_id);
+		}
+		e.AddComponent<TagNameComponent>(std::string(name));
+		return e;
 	}
 
 	void Scene::DestroyEntity(Entity entity)
@@ -163,7 +169,7 @@ namespace Engine
 		assert(m_impl->iterating == 0 && "Scene::Flush inside Each");
 
 		ReclaimPending();
-		if (m_impl->commands.empty())
+		if (!m_impl->commands.empty())
 		{
 			auto running = std::exchange(m_impl->commands, {});		// commands queued by commands wait for the next Flush
 			for (auto& command : running)

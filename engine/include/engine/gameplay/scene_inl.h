@@ -108,7 +108,7 @@ namespace Engine
 		}
 		scene->AssertStructuralChangeAllowed("Entity::RemoveComponent");
 		reg.remove<T>(id);
-		return false;
+		return true;
 	}
 
 	template<typename ... Ts, typename Func>
@@ -125,7 +125,7 @@ namespace Engine
 				scene.BeginIteration();
 			}
 
-			~Scene()
+			~Scope()
 			{
 				scene.EndIteration();
 			}

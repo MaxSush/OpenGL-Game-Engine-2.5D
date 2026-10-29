@@ -63,7 +63,7 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 			if (run_start >= 0)
 			{
 				const float w = static_cast<float>(col - run_start);
-				out.solids.push_back({ { run_start + w * 0.5f, bottom + 0.5f }, { w * 0.5f, 0.5f } });
+				out.solids.push_back({ { { run_start + w * 0.5f, bottom + 0.5f }, { w * 0.5f, 0.5f } } });
 				run_start = -1;
 			}
 
@@ -83,18 +83,18 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 				++spawn_count; 
 				break;
 			case 'C': 
-				out.pickups.push_back({ { cx, bottom + 0.5f }, false }); 
+				out.pickups.push_back({ { cx, bottom + 0.5f } }); 
 				break;
 			case '^': 
-				out.hazards.push_back({ { { cx, bottom + 0.25f }, { 0.4f, 0.25f } } }); 
+				out.hazards.push_back({ { { cx, bottom + 0.25f }, { 0.4f, 0.25f } } });
 				break;
 			case 'G': 
-				out.goals.push_back({ { { cx, bottom + 0.5f }, { 0.5f, 0.5f } } }); 
+				out.goals.push_back({ { { cx, bottom + 0.5f }, { 0.5f, 0.5f } } });
 				break;
 			case 'E':
 			{
 				Enemy e;
-				e.body.position = { cx, bottom + e.body.half_size.y };
+				e.transform.position = { cx, bottom + e.transform.half_size.y };
 				out.enemies.push_back(e);
 				break;
 			}
@@ -102,10 +102,8 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 				error = std::string("unknown character '") + ch + "' at row " + std::to_string(row) +
 					", column " + std::to_string(col);
 				return false;
-
 			}
 		}
-
 	}
 
 	if (spawn_count != 1)

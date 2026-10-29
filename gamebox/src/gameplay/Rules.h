@@ -1,7 +1,11 @@
 #pragma once
 
 #include "Level.h"
-#include "Player.h"
+
+namespace Engine
+{
+	class Scene;
+}
 
 enum class GameState
 {
@@ -57,4 +61,4 @@ struct Progress
 };
 
 // Once per fixed step, after everything has moved. Does nothing unless state == Playing.
-void ResolveInteractions(const Player& player, Level& level, Progress& progress);
+void ResolveInteractions(Engine::Scene& scene, Level& level, Progress& progress);
