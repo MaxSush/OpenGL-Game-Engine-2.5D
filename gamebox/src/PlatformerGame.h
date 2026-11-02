@@ -45,6 +45,6 @@ private:
 	size_t m_coins_total = 0;
 
 private:
-	bool LoadLevel();
+	void StartLevel();
 	Engine::Scene& ActiveScene();
 };

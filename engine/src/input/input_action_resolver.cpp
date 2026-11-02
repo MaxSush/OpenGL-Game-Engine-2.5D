@@ -1,8 +1,7 @@
 #include "input_action_resolver.h"
 #include "physical_input_state.h"
 
-#include <algorithm>
-#include <cmath>
+// includes => pch.h
 
 namespace Engine
 {
@@ -21,6 +20,7 @@ namespace Engine
 				ResolvedAction ra;
 				ra.id = def.id;
 				ra.type = def.type;
+				assert(def.id.value == m_actions.size());
 				m_actions.push_back(ra);
 				m_previous_actions.push_back(ra);
 			}
@@ -70,15 +70,13 @@ namespace Engine
 
 	void InputActionResolver::EvaluateBinding(const InputBinding& binding, const PhysicalInputState& state)
 	{
-		auto it = std::find_if
-		(
-			m_actions.begin(), 
-			m_actions.end(),
-			[&](const ResolvedAction& a) 
-			{ 
-				return a.id == binding.action; 
-			}
-		);
+		const uint32_t index = binding.action.value;
+		if (index >= m_actions.size())
+		{
+			return;
+		}
+		auto it = m_actions.begin() + index;
+
 		if (it == m_actions.end()) return;
 
 		if (binding.required_mods != ModifierKey::None)
@@ -160,19 +158,10 @@ namespace Engine
 
 	void InputActionResolver::ComputeTransitions()
 	{
-		for (auto& cur : m_actions)
+		for (size_t i = 0; i < m_actions.size(); ++i)
 		{
-			auto prev = std::find_if
-			(
-				m_previous_actions.begin(), 
-				m_previous_actions.end(),
-				[&](const ResolvedAction& a) 
-				{ 
-					return a.id == cur.id; 
-				}
-			);
-
-			bool prev_down = (prev != m_previous_actions.end() && prev->down);
+			auto& cur = m_actions[i];
+			const bool prev_down = (i < m_previous_actions.size() && m_previous_actions[i].down);
 			cur.pressed = cur.pressed || (cur.down && !prev_down);
 			cur.released = cur.released || (!cur.down && prev_down);
 		}
@@ -180,8 +169,6 @@ namespace Engine
 
 	const ResolvedAction* InputActionResolver::FindAction(InputActionId id) const
 	{
-		auto it = std::find_if(m_actions.begin(), m_actions.end(),
-			[&](const ResolvedAction& a) { return a.id == id; });
-		return it != m_actions.end() ? &(*it) : nullptr;
+		return (id.value < m_actions.size()) ? &m_actions[id.value] : nullptr;
 	}
 }

@@ -2,7 +2,7 @@
 
 #include <engine/gameplay/scene.h>
 
-#include "Collision.h"
+#include <engine/physics/collision.h>
 #include "Components.h"
 #include "Level.h"
 
@@ -13,9 +13,10 @@ void ResolveInteractions(Engine::Scene& scene, const Level& level, Progress& pro
 		return;
 	}
 
-	scene.Each<Player>([&](Engine::Entity, Player& player)
+	scene.Each<Player, Engine::Transform, Engine::Collider>([&](Engine::Entity, 
+		Player&, Engine::Transform& tr, Engine::Collider& col)
 		{
-			const Body me = BoundsOf(player.transform);
+			const Engine::StaticBox me = BoundsOf(tr, col);
 			auto die = [&](DeathCause cause)
 				{
 					progress.state = GameState::DEAD;
@@ -24,7 +25,7 @@ void ResolveInteractions(Engine::Scene& scene, const Level& level, Progress& pro
 
 			scene.Each<Pickup>([&](Engine::Entity coin, Pickup& pk)
 				{
-					if (Overlaps(me, Body{ pk.position, {kPickupHalf, kPickupHalf} }))
+					if (Engine::Overlaps(me, Engine::StaticBox{ pk.position, {kPickupHalf, kPickupHalf} }))
 					{
 						++progress.coins;
 						coin.Destroy();
@@ -40,19 +41,20 @@ void ResolveInteractions(Engine::Scene& scene, const Level& level, Progress& pro
 					}
 				});
 
-			scene.Each<Enemy>([&](Engine::Entity, Enemy& e)
+			scene.Each<Enemy, Engine::Transform, Engine::Collider>(
+				[&](Engine::Entity, Enemy&, Engine::Transform& tr, Engine::Collider& col)
 				{
-					if (progress.state == GameState::PLAYING && Overlaps(me, BoundsOf(e.transform)))
+					if (progress.state == GameState::PLAYING && Overlaps(me, Engine::BoundsOf(tr, col)))
 					{
 						die(DeathCause::ENEMY);
 						return;
 					}
 				});
 
-			const glm::vec2 p = player.transform.position;
+			const glm::vec2 pos = tr.position;
 			if (progress.state == GameState::PLAYING)
 			{
-				if (p.y < level.kill_y || p.x < level.bounds_min.x || p.x > level.bounds_max.x)
+				if (pos.y < level.kill_y || pos.x < level.bounds_min.x || pos.x > level.bounds_max.x)
 				{
 					die(DeathCause::FALL);
 					return;

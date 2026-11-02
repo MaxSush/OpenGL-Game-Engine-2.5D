@@ -4,6 +4,7 @@ set(input "${CMAKE_CURRENT_SOURCE_DIR}/src/input" )
 set(runtime "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime" )
 set(renderer "${CMAKE_CURRENT_SOURCE_DIR}/src/renderer" )
 set(gameplay "${CMAKE_CURRENT_SOURCE_DIR}/src/gameplay" )
+set(physics "${CMAKE_CURRENT_SOURCE_DIR}/src/physics" )
 
 set(core_sources
 	"${core}/logger/log.cpp"
@@ -14,6 +15,9 @@ set(runtime_sources
 )
 set(renderer_sources
 	"${renderer}/renderer.cpp"
+)
+set(physics_sources
+	"${physics}/collision.cpp"
 )
 set(gameplay_sources
 	"${gameplay}/scene.cpp"
@@ -41,6 +45,7 @@ add_library(engine SHARED
     ${runtime_sources}
     ${renderer_sources}
     ${gameplay_sources}
+    ${physics_sources}
 )
 add_library(Engine::Engine ALIAS engine)
 

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "Collision.h"
+#include <engine/physics/collision.h>
 #include "Components.h"
 
 namespace
@@ -20,52 +20,53 @@ namespace
 		return current + ((target > current) ? max_delta : -max_delta);
 	}
 
-	void StepPlayer(Player& p, PlayerIntent& in, const Tuning& t, const std::vector<Solid>& solids, float dt)
+	void StepPlayer(Player& p, Engine::Transform& tr, Engine::Collider& col, Engine::Motion& m, 
+		PlayerIntent& in, const Tuning& t, const std::vector<Engine::StaticBox>& solids, float dt)
 	{
-		TransformComponent& b = p.transform;
 		// Timers (grounded comes from last step's collision)
-		p.coyote_timer = (b.grounded) ? t.coyote_time : std::max(0.0f, p.coyote_timer - dt);
+		p.coyote_timer = (m.grounded) ? t.coyote_time : std::max(0.0f, p.coyote_timer - dt);
 		p.jump_buffer_timer = (in.jump_pressed) ? t.jump_buffer_time : std::max(0.0f, p.jump_buffer_timer - dt);
 		in.jump_pressed = false;
 
 		// Horizontal: accelerate toward the target speed, or apply friction when there is no input.
 		const float target = in.move_x * t.max_speed;
 		const float rate = (in.move_x != 0.0f) ? t.accel : t.friction;
-		b.velocity.x = MoveToward(b.velocity.x, target, rate * dt);
+		m.velocity.x = MoveToward(m.velocity.x, target, rate * dt);
 
 		// Jump: buffered press + coyote window.
 		if (p.jump_buffer_timer > 0.0f && p.coyote_timer > 0.0f)
 		{
-			b.velocity.y = t.jump_velocity;
+			m.velocity.y = t.jump_velocity;
 			p.jump_buffer_timer = 0.0f;
 			p.coyote_timer = 0.0f;
 		}
 
 		// Gravity (heavier when rising and jump released: variable jump height)
 		float g = t.gravity;
-		if (b.velocity.y > 0.0f && !in.jump_held)
+		if (m.velocity.y > 0.0f && !in.jump_held)
 		{
 			g *= t.release_gravity_mult;
 		}
-		b.velocity.y = std::max(b.velocity.y + g * dt, t.max_fall_speed);
+		m.velocity.y = std::max(m.velocity.y + g * dt, t.max_fall_speed);
 
-		MoveAndCollide(p.transform, solids, dt);
+		Engine::MoveAndCollide(tr, col, m, solids, dt);
 	}
 }
 
 namespace
 {
-	bool HasGroundAhead(const TransformComponent& b, float direction, const std::vector<Solid>& solids)
+	bool HasGroundAhead(const Engine::Transform& tr, const Engine::Collider& col, float direction, 
+		std::span<const Engine::StaticBox> solids)
 	{
 		constexpr float reach = 0.15f;
-		const TransformComponent probe{
-			{ b.position.x + direction * (b.half_size.x + reach), b.position.y - b.half_size.y - 0.05f },
+		const Engine::StaticBox probe{
+			{ tr.position.x + direction * (col.half_size.x + reach), tr.position.y - col.half_size.y - 0.05f },
 			{0.05f, 0.10f}
 		};
 
-		for (const Solid& s : solids)
+		for (const Engine::StaticBox& s : solids)
 		{
-			if (Overlaps(BoundsOf(probe), s.b))
+			if (Engine::Overlaps(probe, s))
 			{
 				return true;
 			}
@@ -73,37 +74,39 @@ namespace
 		return false;
 	}
 
-	void StepEnemy(Enemy& e, const Tuning& t, const std::vector<Solid>& solids, float dt)
+	void StepEnemy(Enemy& e, Engine::Transform& tr, Engine::Collider& col, Engine::Motion& m,
+		const Tuning& t, const std::vector<Engine::StaticBox>& solids, float dt)
 	{
-		TransformComponent& b = e.transform;
+		m.velocity.y = std::max(m.velocity.y + t.gravity * dt, t.max_fall_speed);
 
-		b.velocity.y = std::max(b.velocity.y + t.gravity * dt, t.max_fall_speed);
-
-		if (b.grounded && !HasGroundAhead(b, e.direction, solids))
+		if (m.grounded && !HasGroundAhead(tr, col, e.direction, solids))
 		{
 			e.direction = -e.direction;
 		}
 
-		b.velocity.x = e.direction * t.enemy_speed;
-		const MoveResult hit = MoveAndCollide(b, solids, dt);
+		m.velocity.x = e.direction * t.enemy_speed;
+		const Engine::MoveResult hit = Engine::MoveAndCollide(tr, col, m, solids, dt);
 
 		if (hit.hit_x)
 			e.direction = -e.direction;
 	}
 }
 
-void StepPlayers(Engine::Scene& scene, PlayerIntent& in, const Tuning& t, const std::vector<Solid>& solids, float dt)
+void StepPlayers(Engine::Scene& scene, PlayerIntent& in, const Tuning& t, const std::vector<Engine::StaticBox>& solids, float dt)
 {
-	scene.Each<Player>([&](Engine::Entity, Player& p)
+	scene.Each<Player, Engine::Transform, Engine::Collider, Engine::Motion>(
+		[&](Engine::Entity, Player& p, Engine::Transform& tr, Engine::Collider& col, Engine::Motion& m)
 		{
-			StepPlayer(p, in, t, solids, dt);
+			StepPlayer(p, tr, col, m, in, t, solids, dt);
 		});
+
 }
 
-void StepEnemies(Engine::Scene& scene, const Tuning& t, const std::vector<Solid>& solids, float dt)
+void StepEnemies(Engine::Scene& scene, const Tuning& t, const std::vector<Engine::StaticBox>& solids, float dt)
 {
-	scene.Each<Enemy>([&](Engine::Entity, Enemy& e)
+	scene.Each<Enemy, Engine::Transform, Engine::Collider, Engine::Motion>
+		([&](Engine::Entity, Enemy& e, Engine::Transform& tr, Engine::Collider& col, Engine::Motion& m)
 		{
-			StepEnemy(e, t, solids, dt);
+			StepEnemy(e, tr, col, m, t, solids, dt);
 		});
 }

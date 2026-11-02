@@ -1,6 +1,6 @@
 #include <engine/input/input_context.h>
 
-#include <algorithm>
+// includes => pch.h
 
 namespace Engine
 {
@@ -84,30 +84,32 @@ namespace Engine
 		return it->active && it->enabled;
 	}
 
-	std::vector<InputContextId> InputContextStack::GetActiveContexts() const
+	std::vector<InputContextId>& InputContextStack::GetActiveContexts() const
 	{
-		std::vector<RuntimeContext> active;
-		for (const auto& ctx : m_contexts)
+		if (m_active_dirty)
 		{
-			if (ctx.active && ctx.enabled)
+			std::vector<const RuntimeContext*> active;
+			for (const auto& ctx : m_contexts)
 			{
-				active.push_back(ctx);
+				if (ctx.active && ctx.enabled)
+				{
+					active.push_back(&ctx);
+				}
 			}
-		}
 
-		std::sort(active.begin(), active.end(),
-			[](const RuntimeContext& a, const RuntimeContext& b)
+			std::stable_sort(active.begin(), active.end(),
+				[](const RuntimeContext* a, const RuntimeContext* b)
+				{
+					return a->def.priority > b->def.priority;
+				});
+			m_active_cache.clear();
+			for (const RuntimeContext* ctx : active)
 			{
-				return a.def.priority > b.def.priority;
-			});
-
-		std::vector<InputContextId> result;
-		result.reserve(active.size());
-		for (const auto& ctx : active)
-		{
-			result.push_back(ctx.def.id);
+				m_active_cache.push_back(ctx->def.id);
+			}
+			m_active_dirty = false;
 		}
-		return result;
+		return m_active_cache;
 	}
 
 	//const std::vector<InputContextDef>& InputContextStack::GetContexts() const

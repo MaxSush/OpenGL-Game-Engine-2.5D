@@ -36,7 +36,7 @@ namespace Engine
 		void DisableContext(InputContextId id);
 
 		bool IsContextActive(InputContextId id) const;
-		std::vector<InputContextId> GetActiveContexts() const;
+		std::vector<InputContextId>& GetActiveContexts() const;
 
 		//const std::vector<InputContextDef>& GetContexts() const;
 
@@ -50,6 +50,10 @@ namespace Engine
 
 		std::vector<RuntimeContext> m_contexts;
 		std::vector<InputContextId> m_stack;
+
+		mutable std::vector<InputContextId> m_active_cache;
+		mutable bool m_active_dirty = true;
+
 		uint32_t m_next_context_id = 0;
 	};
 }

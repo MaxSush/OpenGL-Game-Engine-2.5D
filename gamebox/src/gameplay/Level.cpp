@@ -37,7 +37,8 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 
 	const int width = static_cast<int>(rows[0].size());
 	const int height = static_cast<int>(rows.size());
-	int spawn_count = 0;
+	int player_count = 0;
+	int goal_count = 0;
 
 	for (int row = 0; row < height; ++row)
 	{
@@ -65,7 +66,7 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 			if (run_start >= 0)
 			{
 				const float w = static_cast<float>(col - run_start);
-				out.solids.push_back({ { { run_start + w * 0.5f, bottom + 0.5f }, { w * 0.5f, 0.5f } } });
+				out.solids.push_back({ { run_start + w * 0.5f, bottom + 0.5f }, { w * 0.5f, 0.5f } });
 				run_start = -1;
 			}
 
@@ -81,23 +82,22 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 			case ' ':
 				break;
 			case 'P':
-				out.spawn_feet = { cx, bottom };
-				++spawn_count;
+				out.spawns.push_back({ SpawnKind::PLAYER , {cx, bottom } });
+				++player_count;
 				break;
 			case 'C':
-				out.pickups.push_back({ { cx, bottom + 0.5f } });
+				out.spawns.push_back({ SpawnKind::COIN, { cx, bottom } });
 				break;
 			case '^':
-				out.hazards.push_back({ { { cx, bottom + 0.25f }, { 0.4f, 0.25f } } });
+				out.spawns.push_back({ SpawnKind::SPIKE, { cx, bottom  } });
 				break;
 			case 'G':
-				out.goals.push_back({ { { cx, bottom + 0.5f }, { 0.5f, 0.5f } } });
+				out.spawns.push_back({ SpawnKind::GOAL, { cx, bottom } });
+				++goal_count;
 				break;
 			case 'E':
 			{
-				Enemy e;
-				e.transform.position = { cx, bottom + e.transform.half_size.y };
-				out.enemies.push_back(e);
+				out.spawns.push_back({ SpawnKind::ENEMY, { cx, bottom } });
 				break;
 			}
 			default:
@@ -108,13 +108,13 @@ bool ParseLevel(std::span<const std::string_view> rows, Level& out, std::string&
 		}
 	}
 
-	if (spawn_count != 1)
+	if (player_count != 1)
 	{
-		error = "expected exactly one 'P', found " + std::to_string(spawn_count);
+		error = "expected exactly one 'P', found " + std::to_string(player_count);
 		return false;
 	}
 
-	if (out.goals.empty())
+	if (goal_count < 1)
 	{
 		error = "level has no goal 'G'";
 		return false;

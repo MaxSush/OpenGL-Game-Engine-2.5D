@@ -2,9 +2,9 @@
 
 #include <glm/glm.hpp>
 
-#include "Collision.h"
+#include <engine/physics/collision.h>
 
-inline constexpr float kPickupHalf = 0.25f;
+constexpr float kPickupHalf = 0.25f;
 
 struct Pickup
 {
@@ -13,23 +13,21 @@ struct Pickup
 
 struct Hazard
 {
-	Body b{};
+	Engine::StaticBox b{};
 };
 
 struct Goal
 {
-	Body b{};
+	Engine::StaticBox b{};
 };
 
 struct Player
 {
-	TransformComponent transform{};
 	float coyote_timer = 0.0f;
 	float jump_buffer_timer = 0.0f;
 };
 
 struct Enemy
 {
-	TransformComponent transform;
 	float direction = -1.0f;
 };

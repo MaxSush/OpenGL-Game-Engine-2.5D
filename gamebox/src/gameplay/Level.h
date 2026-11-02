@@ -7,18 +7,31 @@
 #include <string_view>
 #include <vector>
 
-#include "Collision.h"
-#include "Components.h"
+#include <engine/physics/collision.h>
+
+
+enum class SpawnKind
+{
+	PLAYER,
+	COIN,
+	SPIKE,
+	GOAL,
+	ENEMY
+};
+
+struct SpawnPoint
+{
+	SpawnKind kind;
+	glm::vec2 feet;		// bottom-centre of the grid cell
+};
+
 
 struct Level
 {
-	std::vector<Solid> solids;
-	std::vector<Pickup> pickups;
-	std::vector<Hazard> hazards;
-	std::vector<Goal> goals;
-	std::vector<Enemy> enemies;
+	std::vector<Engine::StaticBox> solids;
 
-	glm::vec2 spawn_feet{ 0.0f };   // bottom-centre of the 'P' cell; the game adds the player's half height
+	std::vector<SpawnPoint> spawns;
+
 	glm::vec2 bounds_min{ 0.0f };
 	glm::vec2 bounds_max{ 0.0f };
 
