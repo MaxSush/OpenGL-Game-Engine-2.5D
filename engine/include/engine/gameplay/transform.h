@@ -23,7 +23,7 @@ namespace Engine
 
 		glm::vec2 Interpolated(float alpha) const
 		{
-			return prev_position + (position - prev_position) * alpha;
+			return glm::mix(prev_position, position, alpha);
 		}
 	};
 }

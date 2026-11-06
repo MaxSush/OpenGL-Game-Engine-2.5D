@@ -4,6 +4,7 @@
 #include <engine/input/input.h>
 #include <engine/renderer/renderer.h>
 #include <engine/gameplay/world.h>
+#include <engine/gameplay/transform.h>
 
 #include <core/debug/imgui_layer.h>
 #include <platform/glfw/glfw_window.h>
@@ -14,6 +15,23 @@
 #include <exception>
 #include <stdexcept>
 #include <thread>
+
+namespace
+{
+	void SnapshotTransform(Engine::World& world)
+	{
+		if (!world.HasActiveScene())
+		{
+			return;
+		}
+		world.GetActiveScene().Each<Engine::Transform>(
+			[](Engine::Entity, Engine::Transform& t)
+			{
+				t.prev_position = t.position;
+			}
+		);
+	}
+}
 
 namespace Engine
 {
@@ -145,7 +163,6 @@ namespace Engine
 
 		try
 		{
-
 			const Dimension size = m_window->GetFramebufferSize();
 			OnFramebufferResize(size.width, size.height);
 
@@ -157,6 +174,8 @@ namespace Engine
 				float dt = std::chrono::duration<float>(now - last).count();
 				last = now;
 				dt = std::min(dt, m_config.max_frame_time);
+				accumulator += dt;
+				m_time.alpha = std::clamp(accumulator / m_config.fixed_step, 0.0f, 1.0f);
 
 				m_window->PollEvents();
 				m_input->BeginFrame();
@@ -176,10 +195,10 @@ namespace Engine
 				m_game.OnUpdate(dt);
 				m_world->Flush();
 
-				accumulator += dt;
 				int steps = 0;
 				while (accumulator >= m_config.fixed_step && steps < m_config.max_fixed_steps_per_frame)
 				{
+					SnapshotTransform(*m_world);
 					m_game.OnFixedUpdate(m_config.fixed_step);
 					m_world->Flush();
 					accumulator -= m_config.fixed_step;
@@ -188,6 +207,7 @@ namespace Engine
 
 				if (accumulator >= m_config.fixed_step)
 				{
+					LOG_WARN("Physics backlog exceeded maximum steps. Dropping time.  steps: {}", steps);
 					accumulator = 0.0f;
 				}
 

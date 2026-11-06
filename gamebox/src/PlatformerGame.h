@@ -10,6 +10,8 @@
 #include "gameplay/Progress.h"
 #include "gameplay/Tuning.h"
 
+#include <array>
+
 namespace Engine
 {
 	class DebugUI;
@@ -47,4 +49,12 @@ private:
 private:
 	void StartLevel();
 	Engine::Scene& ActiveScene();
+
+	// Debug
+private:
+	std::array<float, 120> m_dt_history{};
+	std::size_t m_dt_index = 0;
+	bool m_interpolate = true;
+	bool m_camera_frozen = false;
+	bool m_camera_interpolated = true;
 };

@@ -81,9 +81,10 @@ void PlatformerGame::OnUpdate(float dt)
 		}
 	}
 
-	if (const Engine::Transform* tr = m_player.TryGetComponent<Engine::Transform>())
+	const float alpha = App().GetTime().alpha;
+	if (const auto* tr = m_player.TryGetComponent<Engine::Transform>())
 	{
-		UpdateCameraFollow(m_camera, tr->position, m_level.bounds_min, m_level.bounds_max, m_follow, dt);
+		UpdateCameraFollow(m_camera, tr->Interpolated(alpha), m_level.bounds_min, m_level.bounds_max, m_follow, dt);
 	}
 }
 
@@ -104,6 +105,8 @@ void PlatformerGame::OnFixedUpdate(float step)
 void PlatformerGame::OnRender()
 {
 	auto& r = App().GetRenderer();
+	const float alpha = App().GetTime().alpha;
+
 	r.BeginScene(m_camera);
 
 	Engine::Scene& scene = ActiveScene();
@@ -126,7 +129,7 @@ void PlatformerGame::OnRender()
 	scene.Each<Enemy, Engine::Transform, Engine::Collider>(
 		[&](Engine::Entity, Enemy&, Engine::Transform& tr, Engine::Collider& col)
 		{
-			r.DrawQuad(tr.position, col.half_size * 2.0f, { 0.44f, 0.08f, 0.69f, 1.0f });
+			r.DrawQuad(tr.Interpolated(alpha), col.half_size * 2.0f, { 0.44f, 0.08f, 0.69f, 1.0f });
 		});
 
 	scene.Each<Pickup>([&](Engine::Entity, Pickup& p)
@@ -136,7 +139,7 @@ void PlatformerGame::OnRender()
 
 	Engine::Transform* tr = m_player.TryGetComponent<Engine::Transform>();
 	Engine::Collider* col = m_player.TryGetComponent<Engine::Collider>();
-	r.DrawQuad(tr->position, col->half_size * 2.0f, { 0.0f, 0.81f, 0.82f, 1.0f });
+	r.DrawQuad(tr->Interpolated(alpha), col->half_size * 2.0f, { 0.0f, 0.81f, 0.82f, 1.0f });
 
 	if (m_progress.state != GameState::PLAYING)
 	{
